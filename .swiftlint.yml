@@ -1,0 +1,36 @@
+disabled_rules:
+  - trailing_whitespace
+  - comma                         # column-aligned args in data files
+  - implicit_optional_initialization
+  - trailing_comma
+
+opt_in_rules:
+  - force_unwrapping              # flag every ! unwrap
+
+included:
+  - runedraw
+
+excluded:
+  - runedraw.xcodeproj
+  - runedraw/runedrawApp.swift    # Xcode-generated
+
+# Allow short names — h/f/e/i/c/v are idiomatic Swift (local copies, loop vars)
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+
+line_length:
+  warning: 120
+  error: 200               # generous error threshold for data files
+
+function_body_length:
+  warning: 60
+  error: 100
+
+type_body_length:
+  warning: 300
+  error: 500

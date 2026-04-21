@@ -1,21 +1,42 @@
-//
-//  ContentView.swift
-//  runedraw
-//
-//  Created by Michael Sholty on 4/20/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @State private var engine = GameEngine()
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            switch engine.screen {
+            case .classSelect:
+                ClassSelectView(engine: engine)
+            case .town:
+                TownView(engine: engine)
+            case .dungeonMap:
+                DungeonMapView(engine: engine)
+            case .combat:
+                CombatView(engine: engine)
+            case .encounter:
+                EncounterView(engine: engine)
+            case .loot(let cards):
+                LootPickupView(engine: engine, groundLoot: cards)
+            case .gameOver(let won):
+                GameOverView(engine: engine, won: won)
+            }
         }
-        .padding()
+        .animation(.easeInOut(duration: 0.25), value: engine.screen.id)
+    }
+}
+
+extension GameScreen {
+    var id: String {
+        switch self {
+        case .classSelect: return "classSelect"
+        case .town:        return "town"
+        case .dungeonMap:  return "dungeonMap"
+        case .combat:      return "combat"
+        case .encounter:   return "encounter"
+        case .loot:        return "loot"
+        case .gameOver:    return "gameOver"
+        }
     }
 }
 

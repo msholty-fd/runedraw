@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+
+    <!-- Deep purple → black background -->
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0%"   stop-color="#1c0440"/>
+      <stop offset="55%"  stop-color="#090118"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+
+    <!-- Warm amber glow at center -->
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#ff8800" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#ff8800" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Card face gradient -->
+    <linearGradient id="cardFace" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#1e0e3a"/>
+      <stop offset="100%" stop-color="#0a0620"/>
+    </linearGradient>
+
+    <!-- Rune glow (soft) -->
+    <filter id="glowSoft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Rune glow (strong — for ambient light) -->
+    <filter id="glowStrong" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="22" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="b"/>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Card drop shadow -->
+    <filter id="cardShadow" x="-20%" y="-10%" width="150%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="28" flood-color="#000" flood-opacity="0.7"/>
+    </filter>
+
+  </defs>
+
+  <!-- ── Background ──────────────────────────────────────── -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Ambient centre glow -->
+  <ellipse cx="512" cy="505" rx="370" ry="340" fill="url(#centerGlow)"/>
+
+  <!-- ── Back card (left tilt) ───────────────────────────── -->
+  <g transform="translate(512,505) rotate(-16) translate(-155,-210)" opacity="0.45">
+    <rect width="310" height="420" rx="22" fill="#140630" stroke="#4a1e80" stroke-width="3"/>
+    <!-- simple X pattern on back -->
+    <line x1="30" y1="30" x2="280" y2="390" stroke="#3a1466" stroke-width="1.5"/>
+    <line x1="280" y1="30" x2="30" y2="390" stroke="#3a1466" stroke-width="1.5"/>
+  </g>
+
+  <!-- ── Middle card (slight left tilt) ────────────────────── -->
+  <g transform="translate(512,502) rotate(-5) translate(-155,-210)" opacity="0.65">
+    <rect width="310" height="420" rx="22" fill="#180840" stroke="#6632aa" stroke-width="3"/>
+    <line x1="30" y1="30" x2="280" y2="390" stroke="#4a1e80" stroke-width="1.5"/>
+    <line x1="280" y1="30" x2="30" y2="390" stroke="#4a1e80" stroke-width="1.5"/>
+  </g>
+
+  <!-- ── Front card ─────────────────────────────────────── -->
+  <g transform="translate(512,498) rotate(9) translate(-155,-210)" filter="url(#cardShadow)">
+
+    <!-- Card body -->
+    <rect width="310" height="420" rx="22" fill="url(#cardFace)" stroke="#c89020" stroke-width="4"/>
+    <!-- Inner border -->
+    <rect x="13" y="13" width="284" height="394" rx="16"
+          fill="none" stroke="#c89020" stroke-width="1.4" opacity="0.45"/>
+
+    <!-- ── Outer rune ring (r=108, centre 155,200) ── -->
+    <circle cx="155" cy="200" r="108"
+            fill="none" stroke="#c89020" stroke-width="2.2" opacity="0.75"
+            filter="url(#glowSoft)"/>
+
+    <!-- Inner rune ring -->
+    <circle cx="155" cy="200" r="88"
+            fill="none" stroke="#c89020" stroke-width="1" opacity="0.3"/>
+
+    <!--
+      Tick marks at 8 positions around the outer ring.
+      Cardinal (N/E/S/W): longer, at r 108→120
+      Ordinal (NE/SE/SW/NW): shorter, at r 108→116
+    -->
+    <!-- N --> <line x1="155" y1="92"  x2="155" y2="76"  stroke="#c89020" stroke-width="2.8" opacity="0.85"/>
+    <!-- E --> <line x1="263" y1="200" x2="279" y2="200" stroke="#c89020" stroke-width="2.8" opacity="0.85"/>
+    <!-- S --> <line x1="155" y1="308" x2="155" y2="324" stroke="#c89020" stroke-width="2.8" opacity="0.85"/>
+    <!-- W --> <line x1="47"  y1="200" x2="31"  y2="200" stroke="#c89020" stroke-width="2.8" opacity="0.85"/>
+    <!-- NE --> <line x1="231.4" y1="123.6" x2="239.9" y2="115.1" stroke="#c89020" stroke-width="2" opacity="0.6"/>
+    <!-- SE --> <line x1="231.4" y1="276.4" x2="239.9" y2="284.9" stroke="#c89020" stroke-width="2" opacity="0.6"/>
+    <!-- SW --> <line x1="78.6"  y1="276.4" x2="70.1"  y2="284.9" stroke="#c89020" stroke-width="2" opacity="0.6"/>
+    <!-- NW --> <line x1="78.6"  y1="123.6" x2="70.1"  y2="115.1" stroke="#c89020" stroke-width="2" opacity="0.6"/>
+
+    <!--
+      ── Algiz rune (ᛉ) — the protection rune ──
+      Spine: (155,135) → (155,278)
+      Left arm: (155,195) → (100,145)
+      Right arm: (155,195) → (210,145)
+
+      Drawn twice: once blurred (glow), once sharp (crisp edge).
+    -->
+
+    <!-- Glow pass -->
+    <g filter="url(#glowStrong)" opacity="0.9">
+      <line x1="155" y1="135" x2="155" y2="278"
+            stroke="#ff8800" stroke-width="11" stroke-linecap="round"/>
+      <line x1="155" y1="195" x2="97"  y2="143"
+            stroke="#ff8800" stroke-width="11" stroke-linecap="round"/>
+      <line x1="155" y1="195" x2="213" y2="143"
+            stroke="#ff8800" stroke-width="11" stroke-linecap="round"/>
+    </g>
+
+    <!-- Crisp pass -->
+    <line x1="155" y1="135" x2="155" y2="278"
+          stroke="#ffe566" stroke-width="6" stroke-linecap="round"/>
+    <line x1="155" y1="195" x2="97"  y2="143"
+          stroke="#ffe566" stroke-width="6" stroke-linecap="round"/>
+    <line x1="155" y1="195" x2="213" y2="143"
+          stroke="#ffe566" stroke-width="6" stroke-linecap="round"/>
+
+    <!-- ── Corner diamond ornaments ── -->
+    <!-- Top-left -->
+    <polygon points="31,35 39,27 47,35 39,43" fill="#c89020" opacity="0.8"/>
+    <!-- Top-right -->
+    <polygon points="263,35 271,27 279,35 271,43" fill="#c89020" opacity="0.8"/>
+    <!-- Bottom-left -->
+    <polygon points="31,377 39,369 47,377 39,385" fill="#c89020" opacity="0.8"/>
+    <!-- Bottom-right -->
+    <polygon points="263,377 271,369 279,377 271,385" fill="#c89020" opacity="0.8"/>
+
+    <!-- ── "RD" rune-style label at card bottom ── -->
+    <text x="155" y="398"
+          font-family="Georgia, serif"
+          font-size="22"
+          font-weight="bold"
+          fill="#c89020"
+          opacity="0.55"
+          text-anchor="middle"
+          letter-spacing="8">RUNEDRAW</text>
+
+  </g>
+
+  <!-- Final vignette to deepen corners -->
+  <radialGradient id="vig" cx="50%" cy="50%" r="72%">
+    <stop offset="55%"  stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0.65"/>
+  </radialGradient>
+  <rect width="1024" height="1024" fill="url(#vig)"/>
+
+</svg>
