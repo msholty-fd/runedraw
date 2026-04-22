@@ -239,6 +239,13 @@ struct Hero: Codable {
     // Waypoints (area indices with discovered waypoints)
     var unlockedWaypoints: [Int] = []
 
+    // Card collection — all cards the player owns but hasn't put in their active deck
+    var cardCollection: [Card] = []
+
+    // Deck-size limits
+    static let minDeckSize = 20
+    static let maxDeckSize = 60
+
     // Combat state
     var currentEnergy: Int
     var block: Int = 0
@@ -298,6 +305,7 @@ struct Hero: Codable {
         skillPoints         = try c.decodeIfPresent(Int.self,    forKey: .skillPoints) ?? 0
         unlockedSkills      = try c.decodeIfPresent([String].self, forKey: .unlockedSkills) ?? []
         unlockedWaypoints   = try c.decodeIfPresent([Int].self,  forKey: .unlockedWaypoints) ?? []
+        cardCollection      = try c.decodeIfPresent([Card].self, forKey: .cardCollection) ?? []
     }
 
     var maxEnergy: Int      { heroClass.baseEnergy + equipment.totalBonuses.energyBonus + stats.intelligence / 10 }

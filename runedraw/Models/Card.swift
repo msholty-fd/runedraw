@@ -168,6 +168,9 @@ struct Card: Identifiable, Codable {
     let isUnique: Bool
     let flavorText: String?
     let requirements: StatRequirements?   // nil = no requirement
+    /// How much incoming damage this card absorbs when used as a block reaction.
+    /// Tapping a card during the block phase commits it — card discards, damage reduced.
+    var defenseValue: Int
 
     var isEquipment: Bool { equipmentSlot != nil }
 
@@ -188,7 +191,8 @@ struct Card: Identifiable, Codable {
         type: CardType,
         rarity: CardRarity = .common,
         heroClass: HeroClass? = nil,
-        effect: CardEffect
+        effect: CardEffect,
+        defenseValue: Int = 0
     ) {
         self.id = id
         self.name = name
@@ -198,6 +202,7 @@ struct Card: Identifiable, Codable {
         self.rarity = rarity
         self.heroClass = heroClass
         self.effect = effect
+        self.defenseValue = defenseValue
         self.equipmentSlot = nil
         self.statBonus = nil
         self.size = ItemSize(w: 1, h: 1)
@@ -229,6 +234,7 @@ struct Card: Identifiable, Codable {
         self.rarity = rarity
         self.heroClass = nil
         self.effect = CardEffect()
+        self.defenseValue = 0           // equipment doesn't block in combat
         self.equipmentSlot = slot
         self.statBonus = statBonus
         self.size = size
@@ -238,6 +244,31 @@ struct Card: Identifiable, Codable {
         self.requirements = requirements
     }
 
-    // MARK: - Custom Codable (decodeIfPresent for new fields → save compat)
-    // Synthesized Codable handles all fields automatically
+    // MARK: - Custom Codable (decodeIfPresent for backward-compat with old saves)
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, cost, type, rarity, heroClass, effect
+        case equipmentSlot, statBonus, size, modifiers, isUnique, flavorText
+        case requirements, defenseValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id            = try c.decode(UUID.self,              forKey: .id)
+        name          = try c.decode(String.self,            forKey: .name)
+        description   = try c.decode(String.self,            forKey: .description)
+        cost          = try c.decode(Int.self,               forKey: .cost)
+        type          = try c.decode(CardType.self,          forKey: .type)
+        rarity        = try c.decode(CardRarity.self,        forKey: .rarity)
+        heroClass     = try c.decodeIfPresent(HeroClass.self,      forKey: .heroClass)
+        effect        = try c.decode(CardEffect.self,        forKey: .effect)
+        equipmentSlot = try c.decodeIfPresent(EquipmentSlot.self,  forKey: .equipmentSlot)
+        statBonus     = try c.decodeIfPresent(StatBonus.self,      forKey: .statBonus)
+        size          = try c.decodeIfPresent(ItemSize.self,       forKey: .size) ?? ItemSize(w: 1, h: 1)
+        modifiers     = try c.decodeIfPresent([ItemModifier].self, forKey: .modifiers) ?? []
+        isUnique      = try c.decodeIfPresent(Bool.self,           forKey: .isUnique) ?? false
+        flavorText    = try c.decodeIfPresent(String.self,         forKey: .flavorText)
+        requirements  = try c.decodeIfPresent(StatRequirements.self, forKey: .requirements)
+        defenseValue  = try c.decodeIfPresent(Int.self,            forKey: .defenseValue) ?? 0
+    }
 }

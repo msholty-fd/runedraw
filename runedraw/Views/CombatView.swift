@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CombatView: View {
     let engine: GameEngine
-    @State private var logVisible = false
     @State private var heroFlash = false
     @State private var showLevelUp = false
     @State private var levelText = ""
@@ -23,6 +22,24 @@ struct CombatView: View {
                     .frame(maxHeight: .infinity)
 
                 Divider().background(.gray.opacity(0.15))
+
+                combatLogView
+                    .frame(maxHeight: .infinity)
+
+                Divider().background(.gray.opacity(0.15))
+
+                if engine.isBlockPhase {
+                    HStack(spacing: 6) {
+                        Text("🛡️").font(.system(size: 14))
+                        Text("BLOCK PHASE — tap cards to block incoming attacks")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.cyan)
+                            .tracking(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color(red: 0.0, green: 0.25, blue: 0.35).opacity(0.8))
+                }
 
                 heroStatusRow
                     .padding(.horizontal, 16)
@@ -79,29 +96,6 @@ struct CombatView: View {
                 .allowsHitTesting(false)
             }
 
-            // Combat log overlay
-            if logVisible {
-                VStack {
-                    Spacer()
-                    combatLogView
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .padding(.bottom, 220)
-                }
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { logVisible.toggle() }
-            } label: {
-                Image(systemName: logVisible ? "xmark" : "scroll")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.gray)
-                    .padding(10)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .padding([.top, .trailing], 16)
         }
         .onChange(of: hero.currentHp) { old, new in
             if new < old {
@@ -223,19 +217,30 @@ struct CombatView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(hero.hand) { card in
-                    CardView(
-                        card: card,
-                        isPlayable: engine.canPlay(card)
-                    ) {
-                        guard engine.canPlay(card) else { return }
-                        SoundManager.cardPlay()
-                        engine.play(card, targeting: 0)
+                    if engine.isBlockPhase {
+                        BlockCardView(
+                            card: card,
+                            isCommitted: engine.committedBlockIDs.contains(card.id)
+                        ) {
+                            SoundManager.cardPlay()
+                            engine.toggleBlock(card)
+                        }
+                        .padding(.vertical, 6)
+                    } else {
+                        CardView(
+                            card: card,
+                            isPlayable: engine.canPlay(card)
+                        ) {
+                            guard engine.canPlay(card) else { return }
+                            SoundManager.cardPlay()
+                            engine.play(card, targeting: 0)
+                        }
+                        .padding(.vertical, 6)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .scale(scale: 0.5).combined(with: .opacity)
+                        ))
                     }
-                    .padding(.vertical, 6)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .scale(scale: 0.5).combined(with: .opacity)
-                    ))
                 }
             }
             .padding(.horizontal, 16)
@@ -243,28 +248,102 @@ struct CombatView: View {
         }
     }
 
-    // MARK: - End Turn
+    // MARK: - End Turn / Confirm Blocks
 
     var endTurnButton: some View {
-        Button {
-            SoundManager.buttonTap()
-            engine.endTurn()
-        } label: {
-            Text("END TURN")
-                .font(.system(size: 14, weight: .black))
-                .tracking(4)
-                .foregroundStyle(.black)
-                .frame(width: 160, height: 44)
-                .background(
-                    LinearGradient(
-                        colors: [Color(red: 1.0, green: 0.85, blue: 0.3),
-                                 Color(red: 0.7, green: 0.5, blue: 0.1)],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+        Group {
+            if engine.isBlockPhase {
+                blockPhaseControls
+            } else {
+                Button {
+                    SoundManager.buttonTap()
+                    engine.endTurn()
+                } label: {
+                    Text("END TURN")
+                        .font(.system(size: 14, weight: .black))
+                        .tracking(4)
+                        .foregroundStyle(.black)
+                        .frame(width: 160, height: 44)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(red: 1.0, green: 0.85, blue: 0.3),
+                                         Color(red: 0.7, green: 0.5, blue: 0.1)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
+    }
+
+    // MARK: - Block Phase Controls
+
+    var blockPhaseControls: some View {
+        let totalIncoming = engine.pendingAttacks.map(\.rawDamage).reduce(0, +)
+        let committed = hero.hand.filter { engine.committedBlockIDs.contains($0.id) }
+        let totalBlocked = min(committed.map(\.defenseValue).reduce(0, +), totalIncoming)
+        let remaining = max(0, totalIncoming - totalBlocked)
+
+        return VStack(spacing: 8) {
+            // Incoming damage breakdown
+            HStack(spacing: 16) {
+                ForEach(engine.pendingAttacks) { atk in
+                    HStack(spacing: 4) {
+                        Text("⚔️").font(.system(size: 12))
+                        Text(atk.enemyName)
+                            .font(.system(size: 10)).foregroundStyle(.gray)
+                        Text("\(atk.rawDamage)")
+                            .font(.system(size: 13, weight: .black)).foregroundStyle(.red)
+                    }
+                }
+            }
+
+            // Block tally
+            HStack(spacing: 20) {
+                VStack(spacing: 2) {
+                    Text("INCOMING").font(.system(size: 9, weight: .bold)).foregroundStyle(.gray).tracking(2)
+                    Text("\(totalIncoming)").font(.system(size: 22, weight: .black)).foregroundStyle(.red)
+                }
+                Text("−").font(.system(size: 18, weight: .bold)).foregroundStyle(.gray)
+                VStack(spacing: 2) {
+                    Text("BLOCKED").font(.system(size: 9, weight: .bold)).foregroundStyle(.gray).tracking(2)
+                    Text("\(totalBlocked)")
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundStyle(totalBlocked > 0 ? Color.cyan : Color.gray)
+                }
+                Text("=").font(.system(size: 18, weight: .bold)).foregroundStyle(.gray)
+                VStack(spacing: 2) {
+                    Text("YOU TAKE").font(.system(size: 9, weight: .bold)).foregroundStyle(.gray).tracking(2)
+                    Text("\(remaining)")
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundStyle(remaining == 0 ? Color.green : Color.red)
+                }
+            }
+            .padding(.horizontal, 20).padding(.vertical, 8)
+            .background(Color.black.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.3), lineWidth: 1))
+
+            Button {
+                SoundManager.buttonTap()
+                engine.confirmBlocks()
+            } label: {
+                Text(remaining == 0 ? "✅ FULLY BLOCKED" : "TAKE \(remaining) DAMAGE")
+                    .font(.system(size: 13, weight: .black))
+                    .tracking(2)
+                    .foregroundStyle(remaining == 0 ? Color.black : Color.white)
+                    .frame(width: 200, height: 44)
+                    .background(
+                        remaining == 0
+                        ? AnyShapeStyle(LinearGradient(colors: [Color(red: 0.2, green: 0.9, blue: 0.4), Color(red: 0.1, green: 0.6, blue: 0.25)], startPoint: .top, endPoint: .bottom))
+                        : AnyShapeStyle(LinearGradient(colors: [Color(red: 0.75, green: 0.1, blue: 0.1), Color(red: 0.5, green: 0.05, blue: 0.05)], startPoint: .top, endPoint: .bottom))
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Combat Log
@@ -272,7 +351,7 @@ struct CombatView: View {
     var combatLogView: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
+                LazyVStack(alignment: .leading, spacing: 3) {
                     ForEach(Array(engine.combatLog.enumerated()), id: \.offset) { _, line in
                         Text(line)
                             .font(.system(size: 11))
@@ -280,18 +359,10 @@ struct CombatView: View {
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
-                .padding(12)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
-            .frame(height: 160)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.black.opacity(0.9))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(.gray.opacity(0.2), lineWidth: 1)
-                    )
-            )
-            .padding(.horizontal, 16)
+            .background(Color.black.opacity(0.35))
             .onChange(of: engine.combatLog.count) {
                 withAnimation { proxy.scrollTo("bottom") }
             }
@@ -394,11 +465,29 @@ struct EnemyRow: View {
 
             Spacer()
 
-            VStack(spacing: 3) {
-                Text(enemy.currentIntent.icon).font(.system(size: 22))
-                Text(enemy.currentIntent.label)
-                    .font(.system(size: 10, weight: .bold)).foregroundStyle(.orange)
-                    .multilineTextAlignment(.center).frame(width: 60)
+            VStack(spacing: 6) {
+                // Intent
+                VStack(spacing: 3) {
+                    Text(enemy.currentIntent.icon).font(.system(size: 22))
+                    Text(enemy.currentIntent.label)
+                        .font(.system(size: 10, weight: .bold)).foregroundStyle(.orange)
+                        .multilineTextAlignment(.center).frame(width: 60)
+                }
+
+                // Block hand — visible cards the player can plan around
+                if !enemy.blockHand.isEmpty {
+                    HStack(spacing: 3) {
+                        ForEach(enemy.blockHand) { card in
+                            Text("\(card.defenseValue)")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundStyle(.cyan)
+                                .frame(width: 22, height: 22)
+                                .background(Color(red: 0.0, green: 0.3, blue: 0.4).opacity(0.8))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.cyan.opacity(0.4), lineWidth: 1))
+                        }
+                    }
+                }
             }
         }
         .padding(14)
@@ -459,6 +548,49 @@ struct StatusPill: View {
         .padding(.horizontal, 6).padding(.vertical, 2)
         .background(color.opacity(0.12))
         .clipShape(Capsule())
+    }
+}
+
+// MARK: - Block Card View
+
+struct BlockCardView: View {
+    let card: Card
+    let isCommitted: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                // Defense value — the whole point during block phase
+                Text("\(card.defenseValue)")
+                    .font(.system(size: 28, weight: .black))
+                    .foregroundStyle(isCommitted ? Color.black : Color.cyan)
+
+                Text("DEF").font(.system(size: 9, weight: .bold)).foregroundStyle(isCommitted ? Color.black.opacity(0.6) : Color.cyan.opacity(0.7)).tracking(2)
+
+                Divider().background(isCommitted ? Color.black.opacity(0.3) : Color.white.opacity(0.1))
+
+                Text(card.name)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(isCommitted ? Color.black : Color.white)
+                    .lineLimit(1)
+            }
+            .frame(width: 80, height: 110)
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isCommitted
+                          ? AnyShapeStyle(LinearGradient(colors: [Color.cyan, Color(red: 0.0, green: 0.6, blue: 0.8)], startPoint: .top, endPoint: .bottom))
+                          : AnyShapeStyle(Color(red: 0.10, green: 0.06, blue: 0.18)))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isCommitted ? Color.white.opacity(0.4) : Color.cyan.opacity(0.35), lineWidth: isCommitted ? 2 : 1)
+            )
+            .scaleEffect(isCommitted ? 1.05 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isCommitted)
+        }
+        .buttonStyle(.plain)
     }
 }
 

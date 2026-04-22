@@ -5,12 +5,14 @@ import SwiftUI
 
 private enum ProfileTab: String, CaseIterable {
     case profile  = "Profile"
+    case deck     = "Deck"
     case equipped = "Equipped"
     case items    = "Items"
 
     var icon: String {
         switch self {
         case .profile:  return "person.fill"
+        case .deck:     return "rectangle.stack.fill"
         case .equipped: return "shield.fill"
         case .items:    return "bag.fill"
         }
@@ -142,6 +144,7 @@ struct CharacterProfileView: View {
     private var tabContent: some View {
         switch tab {
         case .profile:  profileTab
+        case .deck:     deckTab
         case .equipped: equippedTab
         case .items:    itemsTab
         }
@@ -173,17 +176,51 @@ struct CharacterProfileView: View {
 
                 profileDivider
 
-                sectionHeader("ATTRIBUTES")
+                // Attributes header + points badge
+                HStack(alignment: .firstTextBaseline) {
+                    sectionHeader("ATTRIBUTES")
+                    Spacer()
+                    if hero.statPoints > 0 {
+                        Text("\(hero.statPoints) pts")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundStyle(Color(red: 1.0, green: 0.75, blue: 0.3))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Color(red: 1.0, green: 0.55, blue: 0.1).opacity(0.18))
+                            .clipShape(Capsule())
+                            .padding(.trailing, 20)
+                    }
+                }
+
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     ForEach(StatKey.allCases, id: \.self) { statTile(key: $0) }
                 }
-                .padding(.horizontal, 20).padding(.top, 10)
+                .padding(.horizontal, 20).padding(.top, 8)
 
                 profileDivider
 
                 sectionHeader("VITALS")
                 vitalsRows
-                    .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 36)
+                    .padding(.horizontal, 20).padding(.top, 10)
+
+                profileDivider
+
+                // Skills header + points badge
+                HStack(alignment: .firstTextBaseline) {
+                    sectionHeader("SKILLS")
+                    Spacer()
+                    if hero.skillPoints > 0 {
+                        Text("\(hero.skillPoints) pts")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundStyle(Color(red: 0.8, green: 0.6, blue: 1.0))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Color(red: 0.5, green: 0.2, blue: 1.0).opacity(0.18))
+                            .clipShape(Capsule())
+                            .padding(.trailing, 20)
+                    }
+                }
+
+                inlineSkillTree
+                    .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 36)
             }
         }
     }
@@ -209,14 +246,33 @@ struct CharacterProfileView: View {
 
     @ViewBuilder
     private func statTile(key: StatKey) -> some View {
-        let value = hero.stats[key]
-        let frac = min(1.0, Double(value) / 28.0)
+        let value    = hero.stats[key]
+        let frac     = min(1.0, Double(value) / 28.0)
+        let canSpend = hero.statPoints > 0
         VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(key.shortName)
-                    .font(.system(size: 10, weight: .black)).foregroundStyle(key.themeColor).tracking(1)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(key.shortName)
+                        .font(.system(size: 10, weight: .black)).foregroundStyle(key.themeColor).tracking(1)
+                    Text(key.rawValue)
+                        .font(.system(size: 9)).foregroundStyle(.gray.opacity(0.45))
+                }
                 Spacer()
-                Text("\(value)").font(.system(size: 14, weight: .black)).foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    Text("\(value)").font(.system(size: 16, weight: .black)).foregroundStyle(.white)
+                        .contentTransition(.numericText())
+                    if canSpend {
+                        Button { engine.allocateStat(key) } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundStyle(.black)
+                                .frame(width: 22, height: 22)
+                                .background(key.themeColor)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -225,14 +281,19 @@ struct CharacterProfileView: View {
                         .fill(LinearGradient(colors: [key.themeColor, key.themeColor.opacity(0.42)],
                                              startPoint: .leading, endPoint: .trailing))
                         .frame(width: geo.size.width * frac)
+                        .animation(.easeOut(duration: 0.3), value: value)
                 }
             }
             .frame(height: 4)
             Text(bonusLabel(key)).font(.system(size: 10)).foregroundStyle(key.themeColor.opacity(0.65))
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(key.themeColor.opacity(0.06))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(key.themeColor.opacity(0.18), lineWidth: 1)))
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(key.themeColor.opacity(canSpend ? 0.09 : 0.06))
+                .overlay(RoundedRectangle(cornerRadius: 10)
+                    .stroke(canSpend ? key.themeColor.opacity(0.35) : key.themeColor.opacity(0.18), lineWidth: 1))
+        )
     }
 
     private func bonusLabel(_ key: StatKey) -> String {
@@ -240,8 +301,67 @@ struct CharacterProfileView: View {
         case .strength:     return "+\(hero.statAttackBonus) ATK"
         case .dexterity:    return "+\(hero.statDefenseBonus) DEF"
         case .vitality:     return "+\(hero.stats.vitality * 3) HP"
-        case .intelligence: return "+\(hero.statEnergyBonus) NRG"
+        case .intelligence: return "+\(hero.statSpellpowerBonus) SP  +\(hero.statEnergyBonus) NRG"
         }
+    }
+
+    // MARK: - Inline Skill Tree
+
+    private var inlineSkillTree: some View {
+        let branches     = hero.heroClass.skillBranchNames
+        let branchIcons  = hero.heroClass.skillBranchIcons
+        let tree         = SkillDatabase.tree(for: hero.heroClass)
+
+        return HStack(alignment: .top, spacing: 8) {
+            ForEach(0..<3, id: \.self) { branch in
+                VStack(spacing: 0) {
+                    VStack(spacing: 3) {
+                        Text(branchIcons[branch]).font(.system(size: 20))
+                        Text(branches[branch].uppercased())
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundStyle(SkillDatabase.branchColor(branch).opacity(0.8))
+                            .tracking(1)
+                    }
+                    .padding(.bottom, 10)
+
+                    ForEach([1, 2, 3], id: \.self) { tier in
+                        if let node = tree.first(where: { $0.branch == branch && $0.tier == tier }) {
+                            SkillNodeTile(
+                                node: node,
+                                isUnlocked:   hero.unlockedSkills.contains(node.id),
+                                isAvailable:  isSkillAvailable(node),
+                                hasPoints:    hero.skillPoints >= node.cost,
+                                branchColor:  SkillDatabase.branchColor(branch),
+                                previewCard:  SkillDatabase.card(for: node.id),
+                                onUnlock:     { engine.unlockSkill(node.id) }
+                            )
+                        }
+                        if tier < 3 {
+                            skillConnector(branch: branch, fromTier: tier, tree: tree)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func skillConnector(branch: Int, fromTier: Int, tree: [SkillNode]) -> some View {
+        let nodeId     = tree.first(where: { $0.branch == branch && $0.tier == fromTier })?.id ?? ""
+        let isActive   = hero.unlockedSkills.contains(nodeId)
+        let color      = SkillDatabase.branchColor(branch)
+        VStack(spacing: 0) {
+            Rectangle().fill(isActive ? color.opacity(0.6) : Color.white.opacity(0.07)).frame(width: 2, height: 10)
+            Image(systemName: "chevron.down").font(.system(size: 7, weight: .bold))
+                .foregroundStyle(isActive ? color.opacity(0.7) : Color.white.opacity(0.1))
+            Rectangle().fill(isActive ? color.opacity(0.6) : Color.white.opacity(0.07)).frame(width: 2, height: 10)
+        }
+    }
+
+    private func isSkillAvailable(_ node: SkillNode) -> Bool {
+        guard !hero.unlockedSkills.contains(node.id) else { return false }
+        if let reqId = node.requiresId { return hero.unlockedSkills.contains(reqId) }
+        return true
     }
 
     private var vitalsRows: some View {
@@ -282,6 +402,202 @@ struct CharacterProfileView: View {
             }
             .frame(height: 4)
         }
+    }
+
+    // MARK: - Deck Tab
+
+    private var deckTab: some View {
+        let deckCards    = hero.deck + hero.discardPile
+        let deckTotal    = deckCards.count + hero.hand.count
+        let canAdd       = deckTotal < Hero.maxDeckSize
+        let canRemove    = deckTotal > Hero.minDeckSize
+        let collection   = hero.cardCollection
+
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                miniHeroBar
+                Divider().background(.white.opacity(0.08))
+
+                // Deck size gauge
+                deckSizeGauge(deckTotal: deckTotal)
+                    .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 6)
+
+                Divider().background(.white.opacity(0.06)).padding(.horizontal, 20).padding(.bottom, 4)
+
+                // Active deck
+                HStack(alignment: .firstTextBaseline) {
+                    sectionHeader("ACTIVE DECK")
+                    Spacer()
+                    Text("\(deckTotal) cards")
+                        .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.4))
+                        .padding(.trailing, 20)
+                }
+                .padding(.top, 10)
+
+                if deckCards.isEmpty && hero.hand.isEmpty {
+                    emptyDeckHint
+                } else {
+                    // Sort: attack first, then skill, then by cost
+                    let sorted = (deckCards + hero.hand).sorted {
+                        $0.type.rawValue < $1.type.rawValue || ($0.type == $1.type && $0.cost < $1.cost)
+                    }
+                    VStack(spacing: 4) {
+                        ForEach(sorted) { card in
+                            deckCardRow(card: card, inDeck: true, canToggle: canRemove) {
+                                engine.removeCardFromDeck(card)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16).padding(.top, 6)
+                }
+
+                Divider().background(.white.opacity(0.06))
+                    .padding(.horizontal, 20).padding(.vertical, 14)
+
+                // Collection
+                HStack(alignment: .firstTextBaseline) {
+                    sectionHeader("COLLECTION")
+                    Spacer()
+                    Text("\(collection.count) cards")
+                        .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.4))
+                        .padding(.trailing, 20)
+                }
+
+                if collection.isEmpty {
+                    emptyCollectionHint
+                } else {
+                    let sortedCol = collection.sorted {
+                        $0.rarity.rawValue > $1.rarity.rawValue || ($0.rarity == $1.rarity && $0.cost < $1.cost)
+                    }
+                    VStack(spacing: 4) {
+                        ForEach(sortedCol) { card in
+                            deckCardRow(card: card, inDeck: false, canToggle: canAdd) {
+                                engine.addCardToDeck(card)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16).padding(.top, 6)
+                }
+
+                Spacer().frame(height: 28)
+            }
+        }
+    }
+
+    private func deckSizeGauge(deckTotal: Int) -> some View {
+        VStack(spacing: 6) {
+            HStack {
+                Text("DECK SIZE")
+                    .font(.system(size: 10, weight: .black)).foregroundStyle(.gray.opacity(0.45)).tracking(3)
+                Spacer()
+                Text("\(deckTotal) / \(Hero.maxDeckSize)")
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundStyle(deckTotal >= Hero.maxDeckSize ? .orange : .white.opacity(0.7))
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06))
+                    // Min line marker
+                    Rectangle()
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: 1.5)
+                        .offset(x: geo.size.width * CGFloat(Hero.minDeckSize) / CGFloat(Hero.maxDeckSize))
+                    // Fill
+                    let frac = min(1.0, Double(deckTotal) / Double(Hero.maxDeckSize))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(LinearGradient(
+                            colors: deckTotal < Hero.minDeckSize
+                                ? [.orange, .red]
+                                : [accent, accent.opacity(0.5)],
+                            startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(0, geo.size.width * frac))
+                        .animation(.easeOut(duration: 0.3), value: deckTotal)
+                }
+            }
+            .frame(height: 6)
+            HStack {
+                Text("Min \(Hero.minDeckSize)")
+                    .font(.system(size: 9)).foregroundStyle(.gray.opacity(0.35))
+                Spacer()
+                Text("Max \(Hero.maxDeckSize)")
+                    .font(.system(size: 9)).foregroundStyle(.gray.opacity(0.35))
+            }
+        }
+    }
+
+    private func deckCardRow(card: Card, inDeck: Bool, canToggle: Bool, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 10) {
+            // Cost badge
+            ZStack {
+                Circle().fill(accent.opacity(0.18)).frame(width: 28, height: 28)
+                Text("\(card.cost)")
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundStyle(accent)
+            }
+
+            // Type icon
+            Text(card.effect.damageType.icon)
+                .font(.system(size: 16))
+
+            // Name + description
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 5) {
+                    Text(card.name)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(card.rarity == .common ? .white : card.rarity.color)
+                    if card.rarity != .common {
+                        Text(card.rarity.rawValue.uppercased())
+                            .font(.system(size: 6, weight: .black)).tracking(1.5)
+                            .foregroundStyle(card.rarity.color.opacity(0.8))
+                            .padding(.horizontal, 3).padding(.vertical, 1)
+                            .background(card.rarity.color.opacity(0.12)).clipShape(Capsule())
+                    }
+                }
+                Text(card.description)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.gray.opacity(0.5))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Add / Remove button
+            if canToggle {
+                Button(action: action) {
+                    Image(systemName: inDeck ? "minus.circle.fill" : "plus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(inDeck ? .red.opacity(0.7) : .green.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+            } else {
+                Image(systemName: inDeck ? "minus.circle" : "plus.circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.gray.opacity(0.15))
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(inDeck ? 0.04 : 0.02))
+                .overlay(RoundedRectangle(cornerRadius: 10)
+                    .stroke(card.rarity.color.opacity(card.rarity == .common ? 0.0 : 0.2), lineWidth: 1))
+        )
+    }
+
+    private var emptyDeckHint: some View {
+        Text("No cards in your deck yet.")
+            .font(.system(size: 12)).foregroundStyle(.gray.opacity(0.35))
+            .frame(maxWidth: .infinity).padding(.vertical, 20)
+    }
+
+    private var emptyCollectionHint: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "rectangle.stack.badge.plus")
+                .font(.system(size: 28)).foregroundStyle(.gray.opacity(0.2))
+            Text("Defeat enemies to collect cards.")
+                .font(.system(size: 12)).foregroundStyle(.gray.opacity(0.35))
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 24)
     }
 
     // MARK: - Equipped Tab

@@ -1,5 +1,21 @@
 import Foundation
 
+// MARK: - Enemy Block Card
+
+struct EnemyCard: Identifiable, Codable {
+    let id: UUID
+    let name: String
+    let defenseValue: Int
+
+    init(name: String, defenseValue: Int) {
+        self.id           = UUID()
+        self.name         = name
+        self.defenseValue = defenseValue
+    }
+}
+
+// MARK: - Enemy Intent
+
 enum EnemyIntent: Codable {
     case attack(Int)
     case defend(Int)
@@ -61,19 +77,60 @@ struct Enemy: Identifiable, Codable {
     let actions: [EnemyIntent]
     var actionIndex: Int = 0
 
+    /// Block cards currently in hand — drawn fresh each turn, visible to the player.
+    var blockHand: [EnemyCard] = []
+    /// How many block cards this enemy draws per turn.
+    let blockHandSize: Int
+    /// Base defense value per card (randomised ±1 when drawing).
+    let blockCardValue: Int
+
     var isAlive: Bool { currentHp > 0 }
 
     var currentIntent: EnemyIntent {
         actions[actionIndex % actions.count]
     }
 
-    init(id: UUID = UUID(), name: String, icon: String = "👹", maxHp: Int, actions: [EnemyIntent]) {
-        self.id        = id
-        self.name      = name
-        self.icon      = icon
-        self.maxHp     = maxHp
-        self.currentHp = maxHp
-        self.actions   = actions
+    /// Total defense available this turn from remaining block cards.
+    var totalBlockAvailable: Int { blockHand.map(\.defenseValue).reduce(0, +) }
+
+    init(id: UUID = UUID(), name: String, icon: String = "👹", maxHp: Int,
+         actions: [EnemyIntent], blockHandSize: Int = 2, blockCardValue: Int = 3) {
+        self.id             = id
+        self.name           = name
+        self.icon           = icon
+        self.maxHp          = maxHp
+        self.currentHp      = maxHp
+        self.actions        = actions
+        self.blockHandSize  = blockHandSize
+        self.blockCardValue = blockCardValue
+        self.blockHand      = []
+    }
+
+    /// Draw a fresh hand of block cards (called at the start of each new turn).
+    mutating func drawBlockHand() {
+        let cardNames = ["Guard", "Parry", "Brace", "Deflect", "Ward"]
+        blockHand = (0..<blockHandSize).map { _ in
+            let variance = Int.random(in: -1...1)
+            let value    = max(1, blockCardValue + variance)
+            return EnemyCard(name: cardNames.randomElement()!, defenseValue: value)
+        }
+    }
+
+    /// Greedy auto-block: use as few cards as needed to cover `incoming` damage.
+    /// Returns total amount blocked and removes used cards from hand.
+    mutating func autoBlock(incoming: Int) -> Int {
+        let sorted = blockHand.sorted { $0.defenseValue > $1.defenseValue }
+        var blocked  = 0
+        var usedIDs  = Set<UUID>()
+
+        for card in sorted {
+            guard blocked < incoming else { break }
+            usedIDs.insert(card.id)
+            blocked += card.defenseValue
+        }
+
+        blockHand.removeAll { usedIDs.contains($0.id) }
+        return min(incoming, blocked)
     }
 
     mutating func takeDamage(_ amount: Int) {
@@ -96,5 +153,31 @@ struct Enemy: Identifiable, Codable {
         if poisonStacks > 0     { currentHp -= poisonStacks; poisonStacks -= 1 }
         if weakStacks > 0       { weakStacks -= 1 }
         if vulnerableStacks > 0 { vulnerableStacks -= 1 }
+        drawBlockHand()
+    }
+
+    // MARK: - Custom Codable (decodeIfPresent for new fields)
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, icon, maxHp, currentHp, block, poisonStacks, weakStacks
+        case vulnerableStacks, actions, actionIndex, blockHand, blockHandSize, blockCardValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id               = try c.decode(UUID.self,           forKey: .id)
+        name             = try c.decode(String.self,         forKey: .name)
+        icon             = try c.decode(String.self,         forKey: .icon)
+        maxHp            = try c.decode(Int.self,            forKey: .maxHp)
+        currentHp        = try c.decode(Int.self,            forKey: .currentHp)
+        block            = try c.decodeIfPresent(Int.self,   forKey: .block) ?? 0
+        poisonStacks     = try c.decodeIfPresent(Int.self,   forKey: .poisonStacks) ?? 0
+        weakStacks       = try c.decodeIfPresent(Int.self,   forKey: .weakStacks) ?? 0
+        vulnerableStacks = try c.decodeIfPresent(Int.self,   forKey: .vulnerableStacks) ?? 0
+        actions          = try c.decode([EnemyIntent].self,  forKey: .actions)
+        actionIndex      = try c.decodeIfPresent(Int.self,   forKey: .actionIndex) ?? 0
+        blockHand        = try c.decodeIfPresent([EnemyCard].self, forKey: .blockHand) ?? []
+        blockHandSize    = try c.decodeIfPresent(Int.self,   forKey: .blockHandSize) ?? 2
+        blockCardValue   = try c.decodeIfPresent(Int.self,   forKey: .blockCardValue) ?? 3
     }
 }

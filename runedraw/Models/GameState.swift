@@ -208,6 +208,14 @@ struct AreaDatabase {
     }
 }
 
+// MARK: - Block Phase
+
+struct PendingAttack: Identifiable {
+    let id = UUID()
+    let enemyName: String
+    let rawDamage: Int      // before hero block or defense cards reduce it
+}
+
 // MARK: - Bool chance helper
 
 private extension Bool {

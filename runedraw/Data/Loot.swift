@@ -32,14 +32,23 @@ struct LootDatabase {
 
     // MARK: - Main entry point
 
-    static func generateLoot(floorNumber: Int, isBoss: Bool, count: Int) -> [Card] {
+    /// Generates `count` loot items — a mix of equipment and combat cards.
+    /// Pass `heroClass` so class-specific cards can drop alongside neutral ones.
+    static func generateLoot(floorNumber: Int, isBoss: Bool, count: Int,
+                             heroClass: HeroClass? = nil) -> [Card] {
         let rates = DropRates.rates(floor: floorNumber, isBoss: isBoss)
         var items: [Card] = []
         var attempts = 0
         while items.count < count && attempts < count * 10 {
             attempts += 1
             let rarity = rates.roll()
-            if let card = generate(rarity: rarity, floor: floorNumber) {
+            // ~35% of drops are combat cards; bosses lean card-heavy at 55%
+            let cardChance: Double = isBoss ? 0.55 : 0.35
+            if Double.random(in: 0..<1) < cardChance, let hc = heroClass {
+                if let card = CardDatabase.droppableCard(for: hc, rarity: rarity) {
+                    items.append(card)
+                }
+            } else if let card = generate(rarity: rarity, floor: floorNumber) {
                 items.append(card)
             }
         }

@@ -22,6 +22,14 @@ class GameEngine {
     var currentRoomIsBoss: Bool = false
     var currentRoomIsElite: Bool = false
 
+    // Block phase state
+    var isBlockPhase: Bool = false
+    var pendingAttacks: [PendingAttack] = []
+    var committedBlockIDs: Set<UUID> = []       // cards the player has tapped to block with
+
+    // Hero attack queue — filled by play(), resolved (after enemy blocks) in endTurn()
+    var queuedHeroDamage: [UUID: Int] = [:]     // enemyId → total queued damage
+
     // Combat reward summary — read by LootPickupView for animations
     var lastCombatExpGained: Int = 0
     var lastCombatGoldGained: Int = 0
@@ -233,6 +241,9 @@ class GameEngine {
         h.currentEnergy = h.maxEnergy
         hero = h
         combatLog = []
+        queuedHeroDamage = [:]
+        // Each enemy draws their opening block hand
+        for idx in currentEnemies.indices { currentEnemies[idx].drawBlockHand() }
         log("⚔️ Combat begins!")
         if (hero?.startingBlock ?? 0) > 0 { log("🛡️ Starting block: \(hero!.startingBlock)") }
         drawCards(hero?.cardDrawCount ?? 5)
@@ -267,16 +278,16 @@ class GameEngine {
             let typeTag      = isPhysical ? "" : " (\(fx.damageType.rawValue))"
 
             if fx.damageAllEnemies {
-                for idx in currentEnemies.indices {
-                    currentEnemies[idx].takeDamage(dmg)
+                for enemy in currentEnemies {
+                    queuedHeroDamage[enemy.id, default: 0] += dmg
                 }
-                log("\(card.name): All enemies take \(dmg)\(typeTag) damage.")
+                log("\(card.name): Queued \(dmg)\(typeTag) damage vs all enemies.")
             } else if enemyIndex < currentEnemies.count {
-                for _ in 0..<fx.times {
-                    currentEnemies[enemyIndex].takeDamage(dmg)
-                }
+                let totalHit = dmg * fx.times
+                let target   = currentEnemies[enemyIndex]
+                queuedHeroDamage[target.id, default: 0] += totalHit
                 let suffix = fx.times > 1 ? " ×\(fx.times)" : ""
-                log("\(card.name): \(currentEnemies[enemyIndex].name) takes \(dmg)\(typeTag) damage\(suffix).")
+                log("\(card.name): Queued \(totalHit)\(typeTag) damage vs \(target.name)\(suffix).")
             }
 
             // Poison on Hit — physical attacks only (equipment bonus)
@@ -315,91 +326,159 @@ class GameEngine {
 
         // Life on Kill + EXP + Gold
         let justDied = currentEnemies.filter { !$0.isAlive }.count
-        if justDied > 0 {
-            let lifePerKill = hero?.lifeOnKill ?? 0
-            if lifePerKill > 0 {
-                let gained = lifePerKill * justDied
-                hero?.heal(gained)
-                log("❤️ Life on Kill: +\(gained) HP")
-            }
-            let exp = expPerKill() * justDied
-            lastCombatExpGained += exp
-            let leveled = hero?.gainExp(exp) ?? false
-            if leveled {
-                lastCombatLevelsGained += 1
-                log("⬆️ LEVEL UP! Now level \(hero?.level ?? 1)!")
-            } else {
-                log("✨ +\(exp) EXP")
-            }
-            let gold = goldPerKill() * justDied
-            lastCombatGoldGained += gold
-            hero?.gold += gold
-            log("💰 +\(gold)g")
-        }
+        if justDied > 0 { awardKills(count: justDied) }
 
         currentEnemies.removeAll { !$0.isAlive }
         if currentEnemies.isEmpty { endCombat(won: true) }
     }
 
-    // MARK: - End Turn
+    // MARK: - End Turn → Block Phase
 
     func endTurn() {
-        guard var h = hero else { return }
-        h.discardPile.append(contentsOf: h.hand)
-        h.hand = []
-        hero = h
+        guard hero != nil else { return }
 
         log("── Enemy Turn ──")
-        for idx in currentEnemies.indices {
-            guard hero?.isAlive == true else { break }
-            let enemy = currentEnemies[idx]
 
+        // 1. Enemy blocks queued hero damage, then apply remainder
+        if !queuedHeroDamage.isEmpty {
+            for idx in currentEnemies.indices {
+                let enemy  = currentEnemies[idx]
+                guard let queued = queuedHeroDamage[enemy.id], queued > 0 else { continue }
+                let blocked  = currentEnemies[idx].autoBlock(incoming: queued)
+                let leftover = max(0, queued - blocked)
+                if blocked > 0 {
+                    log("🛡️ \(enemy.name) blocks \(blocked) damage (hand: \(enemy.blockHand.count) card(s) remaining).")
+                }
+                if leftover > 0 {
+                    currentEnemies[idx].takeDamage(leftover)
+                    log("💥 \(enemy.name) takes \(leftover) damage.")
+                } else {
+                    log("✅ \(enemy.name) fully blocked the attack!")
+                }
+            }
+            queuedHeroDamage = [:]
+
+            // Kill check + rewards
+            let killed = currentEnemies.filter { !$0.isAlive }.count
+            if killed > 0 { awardKills(count: killed) }
+            currentEnemies.removeAll { !$0.isAlive }
+            if currentEnemies.isEmpty { endCombat(won: true); return }
+        }
+
+        // 2. Execute non-attack enemy actions immediately (defend, poison, weaken)
+        for idx in currentEnemies.indices {
+            let enemy = currentEnemies[idx]
             switch enemy.currentIntent {
-            case .attack(var dmg):
-                if enemy.weakStacks > 0 { dmg = Int(Double(dmg) * 0.75) }
-                hero?.takeDamage(max(0, dmg))
-                log("\(enemy.name) attacks for \(dmg).")
             case .defend(let blk):
                 currentEnemies[idx].block += blk
-                log("\(enemy.name) gains \(blk) block.")
+                log("\(enemy.name) braces for \(blk) block.")
             case .poison(let stacks):
                 hero?.poisonStacks += stacks
                 log("\(enemy.name) applies \(stacks) poison.")
             case .weaken:
                 hero?.weakStacks += 2
                 log("\(enemy.name) weakens you.")
+            case .attack:
+                break   // handled in block phase
+            }
+        }
+
+        // 2. Collect attack intents into the block phase queue
+        pendingAttacks = currentEnemies.compactMap { enemy in
+            if case .attack(var dmg) = enemy.currentIntent {
+                if enemy.weakStacks > 0 { dmg = Int(Double(dmg) * 0.75) }
+                return PendingAttack(enemyName: enemy.name, rawDamage: max(0, dmg))
+            }
+            return nil
+        }
+
+        if pendingAttacks.isEmpty {
+            // No attacks this round — skip straight to next hero turn
+            resolveBlockPhase(blockedWith: [])
+        } else {
+            // Hand stays in place so the player can choose blocks
+            isBlockPhase = true
+            committedBlockIDs = []
+            let total = pendingAttacks.map(\.rawDamage).reduce(0, +)
+            log("🛡️ \(pendingAttacks.count) attack(s) incoming — \(total) damage. Choose your blocks.")
+        }
+    }
+
+    // MARK: - Block Phase Actions
+
+    func toggleBlock(_ card: Card) {
+        guard isBlockPhase else { return }
+        if committedBlockIDs.contains(card.id) {
+            committedBlockIDs.remove(card.id)
+        } else {
+            committedBlockIDs.insert(card.id)
+        }
+    }
+
+    func confirmBlocks() {
+        guard isBlockPhase, var h = hero else { return }
+        let blockedCards = h.hand.filter { committedBlockIDs.contains($0.id) }
+        resolveBlockPhase(blockedWith: blockedCards)
+    }
+
+    private func resolveBlockPhase(blockedWith blockedCards: [Card]) {
+        guard var h = hero else { return }
+
+        // Remove committed cards from hand → discard
+        let blockedIDs = Set(blockedCards.map(\.id))
+        let totalDefense = blockedCards.map(\.defenseValue).reduce(0, +)
+        h.hand.removeAll { blockedIDs.contains($0.id) }
+        h.discardPile.append(contentsOf: blockedCards)
+
+        // Discard the rest of the hand (unblocked, unplayed)
+        h.discardPile.append(contentsOf: h.hand)
+        h.hand = []
+        hero = h
+
+        // Apply incoming damage minus blocks
+        let totalIncoming = pendingAttacks.map(\.rawDamage).reduce(0, +)
+        if totalIncoming > 0 {
+            let remaining = max(0, totalIncoming - totalDefense)
+            if !blockedCards.isEmpty {
+                let blocked = min(totalDefense, totalIncoming)
+                log("🛡️ Blocked \(blocked) damage with \(blockedCards.count) card(s).")
+            }
+            if remaining > 0 {
+                hero?.takeDamage(remaining)
+                log("💥 Took \(remaining) damage.")
+            } else {
+                log("✅ Fully blocked all incoming damage!")
             }
 
-            currentEnemies[idx].advanceAction()
+            // Advance enemy actions now that attacks resolved
+            for idx in currentEnemies.indices {
+                if case .attack = currentEnemies[idx].currentIntent {
+                    currentEnemies[idx].advanceAction()
+                }
+            }
         }
+
+        // Also advance non-attack enemy actions
+        for idx in currentEnemies.indices {
+            if case .attack = currentEnemies[idx].currentIntent { } else {
+                currentEnemies[idx].advanceAction()
+            }
+        }
+
+        // Clear block phase
+        isBlockPhase = false
+        pendingAttacks = []
+        committedBlockIDs = []
 
         if hero?.isAlive == false {
             endCombat(won: false)
             return
         }
 
-        // Life on Kill + EXP + Gold — enemies killed by poison this turn
+        // Poison tick + kill check
         let poisonDead = currentEnemies.filter { !$0.isAlive }.count
         if poisonDead > 0 {
-            let lifePerKill = hero?.lifeOnKill ?? 0
-            if lifePerKill > 0 {
-                let gained = lifePerKill * poisonDead
-                hero?.heal(gained)
-                log("❤️ Life on Kill: +\(gained) HP")
-            }
-            let exp = expPerKill() * poisonDead
-            lastCombatExpGained += exp
-            let leveled = hero?.gainExp(exp) ?? false
-            if leveled {
-                lastCombatLevelsGained += 1
-                log("⬆️ LEVEL UP! Now level \(hero?.level ?? 1)!")
-            } else {
-                log("✨ +\(exp) EXP")
-            }
-            let gold = goldPerKill() * poisonDead
-            lastCombatGoldGained += gold
-            hero?.gold += gold
-            log("💰 +\(gold)g")
+            awardKills(count: poisonDead)
         }
         currentEnemies.removeAll { !$0.isAlive }
         if currentEnemies.isEmpty { endCombat(won: true); return }
@@ -407,10 +486,34 @@ class GameEngine {
         log("── Your Turn ──")
         hero?.startNewTurn()
         for idx in currentEnemies.indices {
-            currentEnemies[idx].startNewTurn()
+            currentEnemies[idx].startNewTurn()   // also calls drawBlockHand()
         }
+        queuedHeroDamage = [:]
         drawCards(hero?.cardDrawCount ?? 5)
         autoSave()
+    }
+
+    // Extracted kill-reward helper used in both play() and resolveBlockPhase()
+    private func awardKills(count: Int) {
+        let lifePerKill = hero?.lifeOnKill ?? 0
+        if lifePerKill > 0 {
+            let gained = lifePerKill * count
+            hero?.heal(gained)
+            log("❤️ Life on Kill: +\(gained) HP")
+        }
+        let exp = expPerKill() * count
+        lastCombatExpGained += exp
+        let leveled = hero?.gainExp(exp) ?? false
+        if leveled {
+            lastCombatLevelsGained += 1
+            log("⬆️ LEVEL UP! Now level \(hero?.level ?? 1)!")
+        } else {
+            log("✨ +\(exp) EXP")
+        }
+        let gold = goldPerKill() * count
+        lastCombatGoldGained += gold
+        hero?.gold += gold
+        log("💰 +\(gold)g")
     }
 
     // MARK: - Draw
@@ -443,7 +546,8 @@ class GameEngine {
             groundLoot = LootDatabase.generateLoot(
                 floorNumber: currentRoomIsElite ? lootTier + 1 : lootTier,
                 isBoss: currentRoomIsBoss,
-                count: lootCount
+                count: lootCount,
+                heroClass: hero?.heroClass
             )
             currentLootContext = .combat
             screen = .loot(groundLoot)
@@ -459,11 +563,47 @@ class GameEngine {
     func pickUpLoot(_ card: Card) {
         guard var h = hero,
               let idx = groundLoot.firstIndex(where: { $0.id == card.id }) else { return }
-        if h.inventory.autoPlace(card) {
-            groundLoot.remove(at: idx)
-            hero = h
-            autoSave()
+        if card.isEquipment {
+            guard h.inventory.autoPlace(card) else { return }
+        } else {
+            // Combat card → goes to collection, never to inventory grid
+            h.cardCollection.append(card)
         }
+        groundLoot.remove(at: idx)
+        hero = h
+        autoSave()
+    }
+
+    // MARK: - Deck Management
+
+    /// Move a card from collection into the active deck (max 60 cards).
+    func addCardToDeck(_ card: Card) {
+        guard var h = hero else { return }
+        let deckTotal = h.deck.count + h.hand.count + h.discardPile.count
+        guard deckTotal < Hero.maxDeckSize else { return }
+        guard let idx = h.cardCollection.firstIndex(where: { $0.id == card.id }) else { return }
+        h.cardCollection.remove(at: idx)
+        h.deck.append(card)
+        hero = h
+        autoSave()
+    }
+
+    /// Move a card from the active deck back to collection (min 20 cards).
+    func removeCardFromDeck(_ card: Card) {
+        guard var h = hero else { return }
+        let deckTotal = h.deck.count + h.hand.count + h.discardPile.count
+        guard deckTotal > Hero.minDeckSize else { return }
+        // Search deck, hand, and discard — outside combat only hand/deck matter
+        if let idx = h.deck.firstIndex(where: { $0.id == card.id }) {
+            h.deck.remove(at: idx)
+        } else if let idx = h.discardPile.firstIndex(where: { $0.id == card.id }) {
+            h.discardPile.remove(at: idx)
+        } else {
+            return
+        }
+        h.cardCollection.append(card)
+        hero = h
+        autoSave()
     }
 
     func finishLooting() {

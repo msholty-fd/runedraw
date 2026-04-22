@@ -95,6 +95,7 @@ struct LootPickupView: View {
                 if !remaining.isEmpty {
                     let card = remaining[min(currentPage, remaining.count - 1)]
                     let fits = canFit(card)
+                    let isCombatCard = !card.isEquipment
                     HStack(spacing: 16) {
                         Button { removeCard(card, pickUp: false) } label: {
                             Text("LEAVE")
@@ -107,10 +108,10 @@ struct LootPickupView: View {
                         .buttonStyle(.plain)
 
                         Button { if fits { removeCard(card, pickUp: true) } } label: {
-                            Text(fits ? "PICK UP" : "BAG FULL")
+                            Text(fits ? (isCombatCard ? "ADD TO COLLECTION" : "PICK UP") : "BAG FULL")
                                 .font(.system(size: 13, weight: .black)).tracking(3)
                                 .foregroundStyle(fits ? .black : .gray)
-                                .frame(width: 150, height: 44)
+                                .frame(width: isCombatCard ? 200 : 150, height: 44)
                                 .background(
                                     fits
                                     ? AnyShapeStyle(LinearGradient(
@@ -130,18 +131,30 @@ struct LootPickupView: View {
                     Spacer().frame(height: 60)
                 }
 
-                // Inventory grid
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("INVENTORY")
-                            .font(.system(size: 10, weight: .black))
-                            .foregroundStyle(.gray.opacity(0.55)).tracking(3)
-                        Spacer()
-                        Text("\(hero.inventory.count) items  •  5×8")
-                            .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.4))
+                // Inventory grid — only show when there are equipment items in the loot
+                let hasEquipmentLoot = remaining.contains(where: { $0.isEquipment })
+                if hasEquipmentLoot || remaining.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("INVENTORY")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundStyle(.gray.opacity(0.55)).tracking(3)
+                            Spacer()
+                            Text("\(hero.inventory.count) items  •  5×8")
+                                .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.4))
+                        }
+                        .padding(.horizontal, 20)
+                        InventoryGridView(grid: hero.inventory).padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 20)
-                    InventoryGridView(grid: hero.inventory).padding(.horizontal, 16)
+                } else {
+                    // Show collection count when only card drops remain
+                    HStack(spacing: 6) {
+                        Image(systemName: "rectangle.stack.fill")
+                            .font(.system(size: 11)).foregroundStyle(.purple.opacity(0.7))
+                        Text("\(hero.cardCollection.count) cards in collection")
+                            .font(.system(size: 11)).foregroundStyle(.gray.opacity(0.5))
+                    }
+                    .padding(.vertical, 8)
                 }
 
                 Spacer().frame(height: 14)
@@ -354,6 +367,8 @@ struct LootPickupView: View {
     // MARK: - Helpers
 
     private func canFit(_ card: Card) -> Bool {
+        // Combat cards always fit — they go to the collection, not the inventory grid
+        if !card.isEquipment { return true }
         let inv = hero.inventory
         for row in 0..<InventoryGrid.rows {
             for col in 0..<InventoryGrid.cols {
@@ -378,19 +393,18 @@ struct LootCardFull: View {
     let card: Card
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Rarity banner
-            HStack {
-                if card.isUnique { Text("✦").foregroundStyle(card.rarity.color).font(.system(size: 11)) }
-                Text(card.rarity.rawValue.uppercased())
-                    .font(.system(size: 10, weight: .black))
-                    .foregroundStyle(card.rarity.color)
-                    .tracking(4)
-                if card.isUnique { Text("✦").foregroundStyle(card.rarity.color).font(.system(size: 11)) }
-            }
-            .padding(.top, 16)
-            .padding(.bottom, 10)
+        if card.isEquipment {
+            equipmentCard
+        } else {
+            combatCardFull
+        }
+    }
 
+    // MARK: Equipment display (original)
+
+    private var equipmentCard: some View {
+        VStack(spacing: 0) {
+            rarityBanner
             // Slot icon
             ZStack {
                 if card.isUnique {
@@ -405,25 +419,19 @@ struct LootCardFull: View {
             }
             .frame(height: 56)
 
-            // Name
             Text(card.name)
                 .font(.system(size: card.isUnique ? 18 : 16, weight: .black))
                 .foregroundStyle(card.isUnique ? card.rarity.color : .white)
                 .multilineTextAlignment(.center)
-                .padding(.top, 8)
-                .padding(.horizontal, 12)
+                .padding(.top, 8).padding(.horizontal, 12)
 
-            // Slot + size
             Text("\(card.equipmentSlot?.rawValue ?? "")  •  \(card.size.w)×\(card.size.h)")
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.gray.opacity(0.6))
-                .tracking(1)
-                .padding(.top, 3)
-                .padding(.bottom, 12)
+                .foregroundStyle(.gray.opacity(0.6)).tracking(1)
+                .padding(.top, 3).padding(.bottom, 12)
 
             Divider().background(.gray.opacity(0.2)).padding(.horizontal, 16)
 
-            // Modifiers
             VStack(alignment: .leading, spacing: 5) {
                 if !card.modifiers.isEmpty {
                     ForEach(card.modifiers.indices, id: \.self) { idx in
@@ -444,31 +452,142 @@ struct LootCardFull: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.horizontal, 20).padding(.top, 12)
 
-            // Flavor text
             if let flavor = card.flavorText {
-                Text(flavor)
-                    .font(.system(size: 11)).italic()
-                    .foregroundStyle(.gray.opacity(0.55))
-                    .multilineTextAlignment(.center)
+                Text(flavor).font(.system(size: 11)).italic()
+                    .foregroundStyle(.gray.opacity(0.55)).multilineTextAlignment(.center)
                     .padding(.horizontal, 16).padding(.top, 10)
             }
+            Spacer(minLength: 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(cardBackground)
+    }
+
+    // MARK: Combat card display
+
+    private var combatCardFull: some View {
+        VStack(spacing: 0) {
+            rarityBanner
+
+            // Card type + class badge
+            HStack(spacing: 8) {
+                Text(card.typeIcon)
+                    .font(.system(size: 11))
+                Text(card.type.rawValue.uppercased())
+                    .font(.system(size: 9, weight: .black)).tracking(2)
+                    .foregroundStyle(.gray.opacity(0.6))
+                if let hc = card.heroClass {
+                    Text("·")
+                        .foregroundStyle(.gray.opacity(0.4))
+                    Text(hc.rawValue.uppercased())
+                        .font(.system(size: 9, weight: .black)).tracking(2)
+                        .foregroundStyle(hc.themeColor.opacity(0.8))
+                } else {
+                    Text("·")
+                        .foregroundStyle(.gray.opacity(0.4))
+                    Text("NEUTRAL")
+                        .font(.system(size: 9, weight: .black)).tracking(2)
+                        .foregroundStyle(.gray.opacity(0.55))
+                }
+            }
+            .padding(.bottom, 6)
+
+            // Big center icon + cost
+            ZStack {
+                if card.rarity == .unique {
+                    Circle().fill(card.rarity.color.opacity(0.12))
+                        .frame(width: 72, height: 72).blur(radius: 10)
+                }
+                VStack(spacing: 4) {
+                    Text(card.effect.damageType.icon)
+                        .font(.system(size: 38))
+                        .shadow(color: card.rarity.color.opacity(0.6), radius: 8)
+                    Text("\(card.cost) ⚡")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+            }
+            .frame(height: 68)
+
+            // Name
+            Text(card.name)
+                .font(.system(size: card.rarity == .unique ? 18 : 16, weight: .black))
+                .foregroundStyle(card.rarity == .unique ? card.rarity.color : .white)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8).padding(.horizontal, 12)
+
+            // Effect description
+            Text(card.description)
+                .font(.system(size: 13))
+                .foregroundStyle(.gray.opacity(0.75))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20).padding(.top, 6)
+
+            Divider().background(.gray.opacity(0.15)).padding(.horizontal, 20).padding(.top, 12)
+
+            // Stats strip
+            HStack(spacing: 16) {
+                if card.effect.damage > 0 {
+                    statPill(icon: "🗡️", label: "\(card.effect.damage) DMG")
+                }
+                if card.effect.block > 0 {
+                    statPill(icon: "🛡️", label: "\(card.effect.block) BLK")
+                }
+                if card.effect.heal > 0 {
+                    statPill(icon: "❤️", label: "\(card.effect.heal) HP")
+                }
+                if card.effect.draw > 0 {
+                    statPill(icon: "🃏", label: "Draw \(card.effect.draw)")
+                }
+                if card.effect.times > 1 {
+                    statPill(icon: "✕", label: "×\(card.effect.times)")
+                }
+                if card.effect.poisonStacks > 0 {
+                    statPill(icon: "☠️", label: "\(card.effect.poisonStacks) PSN")
+                }
+                if card.defenseValue > 0 {
+                    statPill(icon: "🔰", label: "\(card.defenseValue) DEF", color: .cyan)
+                }
+            }
+            .padding(.top, 10)
 
             Spacer(minLength: 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(card.isUnique
-                      ? Color(red: 0.14, green: 0.06, blue: 0.22)
-                      : Color(red: 0.10, green: 0.07, blue: 0.18))
-                .overlay(RoundedRectangle(cornerRadius: 16)
-                    .stroke(card.rarity.color.opacity(card.isUnique ? 0.7 : 0.4),
-                            lineWidth: card.isUnique ? 2 : 1))
-                .shadow(color: card.rarity.color.opacity(card.isUnique ? 0.3 : 0.1), radius: 12)
-        )
+        .background(cardBackground)
+    }
+
+    // MARK: Shared helpers
+
+    private var rarityBanner: some View {
+        HStack {
+            if card.isUnique { Text("✦").foregroundStyle(card.rarity.color).font(.system(size: 11)) }
+            Text(card.rarity.rawValue.uppercased())
+                .font(.system(size: 10, weight: .black))
+                .foregroundStyle(card.rarity.color).tracking(4)
+            if card.isUnique { Text("✦").foregroundStyle(card.rarity.color).font(.system(size: 11)) }
+        }
+        .padding(.top, 16).padding(.bottom, 10)
+    }
+
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(card.isUnique
+                  ? Color(red: 0.14, green: 0.06, blue: 0.22)
+                  : Color(red: 0.10, green: 0.07, blue: 0.18))
+            .overlay(RoundedRectangle(cornerRadius: 16)
+                .stroke(card.rarity.color.opacity(card.isUnique ? 0.7 : 0.4),
+                        lineWidth: card.isUnique ? 2 : 1))
+            .shadow(color: card.rarity.color.opacity(card.isUnique ? 0.3 : 0.1), radius: 12)
+    }
+
+    private func statPill(icon: String, label: String, color: Color = .white) -> some View {
+        HStack(spacing: 3) {
+            Text(icon).font(.system(size: 11))
+            Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(color.opacity(0.85))
+        }
     }
 }
 

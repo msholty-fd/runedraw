@@ -139,7 +139,7 @@ struct SkillTreeView: View {
 
 // MARK: - Skill Node Tile
 
-private struct SkillNodeTile: View {
+struct SkillNodeTile: View {
     let node: SkillNode
     let isUnlocked: Bool
     let isAvailable: Bool
