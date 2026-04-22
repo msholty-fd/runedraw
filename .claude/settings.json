@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Reminder: if this change introduces a new mechanic, modifies a system, or shifts product direction, update /Users/michaelsholty/dev/runedraw/CLAUDE.md to reflect it.' >&2"
+          }
+        ]
+      }
+    ]
+  }
+}
