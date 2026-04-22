@@ -69,9 +69,10 @@ struct LootDatabase {
     // Common — base item, no affixes
     private static func generateCommon(floor: Int) -> Card? {
         guard let base = BaseItemDatabase.random(floor: floor) else { return nil }
-        return Card(name: base.baseName, rarity: .common, slot: base.slot,
+        return Card(name: base.baseName, description: base.activatedDescription, rarity: .common, slot: base.slot,
                     size: base.size, statBonus: base.baseStats,
-                    requirements: base.requirements.isEmpty ? nil : base.requirements)
+                    requirements: base.requirements.isEmpty ? nil : base.requirements,
+                    effect: base.activatedEffect, activatedCost: base.activatedCost)
     }
 
     // Magic — base item + 1 prefix OR suffix
@@ -83,17 +84,19 @@ struct LootDatabase {
                 return generateCommon(floor: floor)
             }
             let mod = ItemModifier(label: pre.label, bonus: pre.bonus)
-            return Card(name: "\(prefixName(pre.label)) \(base.baseName)", rarity: .magic,
-                        slot: base.slot, size: base.size, statBonus: base.baseStats + pre.bonus,
-                        modifiers: [mod], requirements: reqs)
+            return Card(name: "\(prefixName(pre.label)) \(base.baseName)", description: base.activatedDescription,
+                        rarity: .magic, slot: base.slot, size: base.size, statBonus: base.baseStats + pre.bonus,
+                        modifiers: [mod], requirements: reqs,
+                        effect: base.activatedEffect, activatedCost: base.activatedCost)
         } else {
             guard let suf = AffixDatabase.availableSuffixes(floor: floor).randomElement() else {
                 return generateCommon(floor: floor)
             }
             let mod = ItemModifier(label: suf.label, bonus: suf.bonus)
-            return Card(name: "\(base.baseName) \(suffixName(suf.label))", rarity: .magic,
-                        slot: base.slot, size: base.size, statBonus: base.baseStats + suf.bonus,
-                        modifiers: [mod], requirements: reqs)
+            return Card(name: "\(base.baseName) \(suffixName(suf.label))", description: base.activatedDescription,
+                        rarity: .magic, slot: base.slot, size: base.size, statBonus: base.baseStats + suf.bonus,
+                        modifiers: [mod], requirements: reqs,
+                        effect: base.activatedEffect, activatedCost: base.activatedCost)
         }
     }
 
@@ -129,18 +132,20 @@ struct LootDatabase {
         }
 
         let rareName = rareItemName()
-        return Card(name: "\(rareName) \(base.baseName)", rarity: .rare,
-                    slot: base.slot, size: base.size, statBonus: total,
-                    modifiers: mods, requirements: reqs)
+        return Card(name: "\(rareName) \(base.baseName)", description: base.activatedDescription,
+                    rarity: .rare, slot: base.slot, size: base.size, statBonus: total,
+                    modifiers: mods, requirements: reqs,
+                    effect: base.activatedEffect, activatedCost: base.activatedCost)
     }
 
     // Unique — pull from UniqueItemDatabase
     private static func generateUnique(floor: Int) -> Card? {
         guard let template = UniqueItemDatabase.random(floor: floor) else { return nil }
         let mods = template.modifierLabels.map { ItemModifier(label: $0, bonus: StatBonus()) }
-        return Card(name: template.name, rarity: .unique,
-                    slot: template.slot, size: template.size, statBonus: template.stats,
-                    modifiers: mods, isUnique: true, flavorText: template.flavorText)
+        return Card(name: template.name, description: template.activatedDescription,
+                    rarity: .unique, slot: template.slot, size: template.size, statBonus: template.stats,
+                    modifiers: mods, isUnique: true, flavorText: template.flavorText,
+                    effect: template.activatedEffect, activatedCost: template.activatedCost)
     }
 
     // MARK: - Naming helpers

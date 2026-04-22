@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-// swiftlint:disable type_body_length
+// swiftlint:disable type_body_length file_length
 @Observable
 class GameEngine {
 
@@ -37,6 +37,7 @@ class GameEngine {
     // Per-turn combat state
     var lastPlayedCardType: CardType? = nil   // combo mechanic: tracks type of last card played
     var amplifyActive: Bool = false            // Sorceress: next attack card deals 2×
+    var usedEquipmentActivations: Set<EquipmentSlot> = []
 
     // Combat reward summary — read by LootPickupView for animations
     var lastCombatExpGained: Int = 0
@@ -274,6 +275,7 @@ class GameEngine {
         queuedHeroDamage = [:]
         lastPlayedCardType = nil
         amplifyActive = false
+        usedEquipmentActivations = []
         // Each enemy draws their opening block hand
         for idx in currentEnemies.indices { currentEnemies[idx].drawBlockHand() }
         log("⚔️ Combat begins!")
@@ -589,6 +591,7 @@ class GameEngine {
         queuedHeroDamage = [:]
         lastPlayedCardType = nil
         amplifyActive = false
+        usedEquipmentActivations = []
         drawCards(hero?.cardDrawCount ?? 5)
         autoSave()
     }
@@ -808,6 +811,75 @@ class GameEngine {
 
     func dropFromInventory(_ card: Card) {
         hero?.inventory.remove(id: card.id)
+        autoSave()
+    }
+
+    // MARK: - Equipment Activation
+
+    func canActivateEquipment(_ slot: EquipmentSlot) -> Bool {
+        guard let card = hero?.equipment.equipped(in: slot),
+              !usedEquipmentActivations.contains(slot),
+              (hero?.currentEnergy ?? 0) >= card.activatedCost else { return false }
+        let fx = card.effect
+        return fx.damage > 0 || fx.block > 0 || fx.draw > 0 || fx.energyGain > 0 ||
+               fx.heal > 0 || fx.poisonStacks > 0 || fx.strengthGain > 0 ||
+               fx.amplifyNext || fx.vulnerableStacks > 0 || fx.applyBurn > 0
+    }
+
+    func activateEquipment(_ slot: EquipmentSlot, targeting enemyIndex: Int = 0) {
+        guard canActivateEquipment(slot),
+              var h = hero,
+              let card = h.equipment.equipped(in: slot) else { return }
+
+        h.currentEnergy -= card.activatedCost
+        usedEquipmentActivations.insert(slot)
+        hero = h
+
+        let fx = card.effect
+        log("⚙️ \(card.name): activated.")
+
+        if fx.damage > 0 {
+            let isPhysical = fx.damageType == .physical
+            let scaling = isPhysical
+                ? (hero?.attackBonus ?? 0) + (hero?.combatStrength ?? 0)
+                : (hero?.spellpower ?? 0)
+            let perHit = max(1, fx.damage + scaling)
+            if fx.damageAllEnemies {
+                for enemy in currentEnemies { queuedHeroDamage[enemy.id, default: 0] += perHit }
+            } else if enemyIndex < currentEnemies.count {
+                queuedHeroDamage[currentEnemies[enemyIndex].id, default: 0] += perHit
+            }
+        }
+        if fx.block > 0 { hero?.block += fx.block + (hero?.defenseBonus ?? 0) }
+        if enemyIndex < currentEnemies.count {
+            if fx.poisonStacks > 0 { currentEnemies[enemyIndex].poisonStacks += fx.poisonStacks }
+            if fx.applyBurn > 0    { currentEnemies[enemyIndex].burnStacks += fx.applyBurn }
+            if fx.vulnerableStacks > 0 { currentEnemies[enemyIndex].vulnerableStacks += fx.vulnerableStacks }
+        }
+        if fx.damageAllEnemies && fx.poisonStacks > 0 {
+            for idx in currentEnemies.indices { currentEnemies[idx].poisonStacks += fx.poisonStacks }
+        }
+        if fx.strengthGain > 0 { hero?.combatStrength += fx.strengthGain }
+        if fx.amplifyNext      { amplifyActive = true }
+        if fx.draw > 0         { drawCards(fx.draw) }
+        if fx.energyGain > 0   { hero?.currentEnergy += fx.energyGain }
+        if fx.heal > 0         { hero?.heal(fx.heal) }
+    }
+
+    func addEquipmentToDeck(_ card: Card) {
+        guard var h = hero, h.inventory.contains(id: card.id) else { return }
+        h.inventory.remove(id: card.id)
+        h.cardCollection.append(card)
+        hero = h
+        autoSave()
+    }
+
+    func returnEquipmentToBag(_ card: Card) {
+        guard var h = hero, card.isEquipment,
+              let idx = h.cardCollection.firstIndex(where: { $0.id == card.id }) else { return }
+        h.cardCollection.remove(at: idx)
+        h.inventory.add(card)
+        hero = h
         autoSave()
     }
 

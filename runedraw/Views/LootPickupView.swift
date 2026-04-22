@@ -436,6 +436,19 @@ struct LootCardFull: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20).padding(.top, 12)
 
+            if !card.description.isEmpty {
+                HStack(spacing: 5) {
+                    Image(systemName: "bolt.fill").font(.system(size: 10))
+                        .foregroundStyle(Color(red: 0.4, green: 0.7, blue: 1.0))
+                    Text(card.description).font(.system(size: 12))
+                        .foregroundStyle(Color(red: 0.4, green: 0.7, blue: 1.0).opacity(0.9))
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 6)
+                .padding(.horizontal, 20)
+            }
+
             if let flavor = card.flavorText {
                 Text(flavor).font(.system(size: 11)).italic()
                     .foregroundStyle(.gray.opacity(0.55)).multilineTextAlignment(.center)

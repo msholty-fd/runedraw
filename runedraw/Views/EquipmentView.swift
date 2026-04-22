@@ -243,6 +243,15 @@ struct EquipmentView: View {
                     rarityBadge(card)
                 }
                 statLines(card).lineLimit(3)
+                if !card.description.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill").font(.system(size: 8))
+                            .foregroundStyle(Color(red: 0.4, green: 0.7, blue: 1.0))
+                        Text(card.description).font(.system(size: 11))
+                            .foregroundStyle(Color(red: 0.4, green: 0.7, blue: 1.0).opacity(0.85))
+                            .lineLimit(2)
+                    }
+                }
                 // Stat requirements
                 if let reqs = card.requirements, !reqs.isEmpty {
                     HStack(spacing: 4) {
@@ -277,6 +286,21 @@ struct EquipmentView: View {
                 .buttonStyle(.plain)
                 .disabled(!canEquip)
 
+                Button {
+                    engine.addEquipmentToDeck(card)
+                    selection = nil
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "rectangle.stack.badge.plus").font(.system(size: 11))
+                        Text("TO DECK").font(.system(size: 9, weight: .black)).tracking(1)
+                    }
+                    .foregroundStyle(Color(red: 0.55, green: 0.8, blue: 1.0))
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Color(red: 0.15, green: 0.3, blue: 0.5).opacity(0.4))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+
                 Button { confirmDrop = true } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 13)).foregroundStyle(.gray)
@@ -305,6 +329,15 @@ struct EquipmentView: View {
                 }
                 Text("Equipped in \(slot.rawValue)").font(.system(size: 10)).foregroundStyle(.gray.opacity(0.5))
                 statLines(card).lineLimit(3)
+                if !card.description.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill").font(.system(size: 8))
+                            .foregroundStyle(Color(red: 0.4, green: 0.7, blue: 1.0))
+                        Text(card.description).font(.system(size: 11))
+                            .foregroundStyle(Color(red: 0.4, green: 0.7, blue: 1.0).opacity(0.85))
+                            .lineLimit(2)
+                    }
+                }
                 if let reqs = card.requirements, !reqs.isEmpty {
                     Text("Requires \(reqs.description)")
                         .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.45))
