@@ -6,6 +6,24 @@ enum CardType: String, Codable {
     case power = "Power"
 }
 
+enum DamageType: String, Codable {
+    case physical = "Physical"
+    case fire     = "Fire"
+    case ice      = "Ice"
+    case arcane   = "Arcane"
+    case poison   = "Poison"
+
+    var icon: String {
+        switch self {
+        case .physical: return "⚔️"
+        case .fire:     return "🔥"
+        case .ice:      return "❄️"
+        case .arcane:   return "✨"
+        case .poison:   return "☠️"
+        }
+    }
+}
+
 enum CardRarity: String, Codable {
     case common = "Common"
     case magic = "Magic"
@@ -70,7 +88,8 @@ struct StatBonus: Codable {
     var cardDrawBonus: Int = 0
     var lifeOnKill: Int = 0        // heal X when any enemy dies this combat
     var startingBlock: Int = 0     // start each combat turn with X block
-    var poisonOnHit: Int = 0       // apply N poison stacks when playing attack cards
+    var poisonOnHit: Int = 0       // apply N poison stacks when playing physical attack cards
+    var spellpowerBonus: Int = 0   // adds to spell damage (staves, wands, INT gear)
 
     var description: String {
         var parts: [String] = []
@@ -81,7 +100,8 @@ struct StatBonus: Codable {
         if cardDrawBonus != 0 { parts.append("\(cardDrawBonus > 0 ? "+" : "")\(cardDrawBonus) Card Draw") }
         if lifeOnKill != 0    { parts.append("+\(lifeOnKill) Life on Kill") }
         if startingBlock != 0 { parts.append("+\(startingBlock) Starting Block") }
-        if poisonOnHit != 0   { parts.append("+\(poisonOnHit) Poison on Hit") }
+        if poisonOnHit != 0      { parts.append("+\(poisonOnHit) Poison on Hit") }
+        if spellpowerBonus != 0  { parts.append("\(spellpowerBonus > 0 ? "+" : "")\(spellpowerBonus) Spellpower") }
         return parts.joined(separator: "\n")
     }
 
@@ -98,7 +118,8 @@ struct StatBonus: Codable {
             cardDrawBonus: lhs.cardDrawBonus + rhs.cardDrawBonus,
             lifeOnKill: lhs.lifeOnKill + rhs.lifeOnKill,
             startingBlock: lhs.startingBlock + rhs.startingBlock,
-            poisonOnHit: lhs.poisonOnHit + rhs.poisonOnHit
+            poisonOnHit: lhs.poisonOnHit + rhs.poisonOnHit,
+            spellpowerBonus: lhs.spellpowerBonus + rhs.spellpowerBonus
         )
     }
 }
@@ -118,6 +139,7 @@ struct ItemModifier: Codable {
 
 struct CardEffect: Codable {
     var damage: Int = 0
+    var damageType: DamageType = .physical   // governs which stat scales damage
     var block: Int = 0
     var draw: Int = 0
     var energyGain: Int = 0

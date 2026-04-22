@@ -26,10 +26,26 @@ struct SaveManager {
 
     static func load() -> SaveData? {
         guard let data = try? Data(contentsOf: saveURL) else { return nil }
-        return try? JSONDecoder().decode(SaveData.self, from: data)
+        do {
+            return try JSONDecoder().decode(SaveData.self, from: data)
+        } catch {
+            print("Save decode failed (model likely changed): \(error)")
+            return nil
+        }
     }
 
     static func deleteSave() {
         try? FileManager.default.removeItem(at: saveURL)
+    }
+
+    private static let lastClassKey = "runedraw_last_hero_class"
+
+    static func saveLastClass(_ heroClass: HeroClass) {
+        UserDefaults.standard.set(heroClass.rawValue, forKey: lastClassKey)
+    }
+
+    static func loadLastClass() -> HeroClass? {
+        guard let raw = UserDefaults.standard.string(forKey: lastClassKey) else { return nil }
+        return HeroClass(rawValue: raw)
     }
 }

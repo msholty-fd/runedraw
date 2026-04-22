@@ -2,9 +2,8 @@ import SwiftUI
 
 struct DungeonMapView: View {
     let engine: GameEngine
-    @State private var showingEquipment = false
+    @State private var showingProfile = false
     @State private var showingSkillTree = false
-    @State private var showingStats = false
     @State private var showingWaypoints = false
 
     var body: some View {
@@ -12,128 +11,100 @@ struct DungeonMapView: View {
             Color(red: 0.04, green: 0.02, blue: 0.10).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Hero status bar — two rows
+                // Hero bar — matches TownView layout
                 if let hero = engine.hero {
-                    VStack(spacing: 0) {
-                        // Row 1: hero identity + HP
-                        HeroStatusBar(hero: hero)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 10)
-                            .padding(.bottom, 8)
+                    HStack(spacing: 14) {
+                        // Portrait — taps to full character profile
+                        Button { showingProfile = true } label: {
+                            ZStack(alignment: .topTrailing) {
+                                HeroPortraitView(heroClass: hero.heroClass, size: 44)
+                                if hero.statPoints > 0 || hero.skillPoints > 0 {
+                                    Circle()
+                                        .fill(Color(red: 1.0, green: 0.75, blue: 0.3))
+                                        .frame(width: 8, height: 8)
+                                        .offset(x: 2, y: -2)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .sheet(isPresented: $showingProfile) {
+                            CharacterProfileView(engine: engine)
+                        }
 
-                        Divider().background(.white.opacity(0.06))
-
-                        // Row 2: resources + action buttons
-                        HStack(spacing: 12) {
-                            // Gold
+                        // Hero identity + HP
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(hero.heroClass.rawValue.uppercased())
+                                    .font(.system(size: 10, weight: .black)).foregroundStyle(.gray).tracking(3)
+                                Text("LVL \(hero.level)")
+                                    .font(.system(size: 10, weight: .black))
+                                    .foregroundStyle(Color(red: 1.0, green: 0.75, blue: 0.2)).tracking(1)
+                            }
                             HStack(spacing: 4) {
-                                Text("💰").font(.system(size: 12))
-                                Text("\(hero.gold)g")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.25))
+                                Image(systemName: "heart.fill").font(.system(size: 10)).foregroundStyle(.red)
+                                Text("\(hero.currentHp)/\(hero.maxHp)")
+                                    .font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                             }
+                        }
 
-                            // Level
-                            Text("LV\(hero.level)")
-                                .font(.system(size: 11, weight: .black))
-                                .foregroundStyle(.gray.opacity(0.55))
+                        Spacer()
 
-                            Spacer()
-
-                            // Town portal
-                            if hero.townPortals > 0 {
-                                Button { engine.useTownPortal() } label: {
-                                    HStack(spacing: 3) {
-                                        Text("🌀").font(.system(size: 12))
-                                        Text("×\(hero.townPortals)")
-                                            .font(.system(size: 11, weight: .black))
-                                            .foregroundStyle(Color(red: 0.5, green: 0.9, blue: 1.0))
-                                    }
-                                    .padding(.horizontal, 8).padding(.vertical, 5)
-                                    .background(Color(red: 0.1, green: 0.3, blue: 0.6).opacity(0.3))
-                                    .clipShape(Capsule())
-                                    .overlay(Capsule().stroke(Color(red: 0.4, green: 0.7, blue: 1.0).opacity(0.35), lineWidth: 1))
+                        // Town portal
+                        if hero.townPortals > 0 {
+                            Button { engine.useTownPortal() } label: {
+                                HStack(spacing: 3) {
+                                    Text("🌀").font(.system(size: 12))
+                                    Text("×\(hero.townPortals)")
+                                        .font(.system(size: 11, weight: .black))
+                                        .foregroundStyle(Color(red: 0.5, green: 0.9, blue: 1.0))
                                 }
-                                .buttonStyle(.plain)
-                            }
-
-                            // Waypoints
-                            let waypoints = hero.unlockedWaypoints
-                            if !waypoints.isEmpty {
-                                Button { showingWaypoints = true } label: {
-                                    Image(systemName: "map.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Color(red: 0.3, green: 0.8, blue: 1.0))
-                                        .padding(8)
-                                        .background(Color(red: 0.1, green: 0.5, blue: 0.8).opacity(0.15))
-                                        .clipShape(Circle())
-                                }
-                                .buttonStyle(.plain)
-                                .sheet(isPresented: $showingWaypoints) {
-                                    WaypointView(engine: engine)
-                                }
-                            }
-
-                            // Stats
-                            Button { showingStats = true } label: {
-                                ZStack(alignment: .topTrailing) {
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Color(red: 1.0, green: 0.65, blue: 0.25))
-                                        .padding(8)
-                                        .background(Color(red: 1.0, green: 0.5, blue: 0.1).opacity(0.12))
-                                        .clipShape(Circle())
-                                    if hero.statPoints > 0 {
-                                        Circle()
-                                            .fill(Color(red: 1.0, green: 0.75, blue: 0.3))
-                                            .frame(width: 7, height: 7)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .sheet(isPresented: $showingStats) {
-                                StatAllocationView(engine: engine)
-                            }
-
-                            // Skill tree
-                            Button { showingSkillTree = true } label: {
-                                ZStack(alignment: .topTrailing) {
-                                    Image(systemName: "star.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Color(red: 0.7, green: 0.4, blue: 1.0))
-                                        .padding(8)
-                                        .background(Color(red: 0.5, green: 0.2, blue: 1.0).opacity(0.12))
-                                        .clipShape(Circle())
-                                    if hero.skillPoints > 0 {
-                                        Circle()
-                                            .fill(Color(red: 0.9, green: 0.6, blue: 1.0))
-                                            .frame(width: 7, height: 7)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .sheet(isPresented: $showingSkillTree) {
-                                SkillTreeView(engine: engine)
-                            }
-
-                            // Equipment
-                            Button { showingEquipment = true } label: {
-                                Image(systemName: "bag.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Color(red: 0.9, green: 0.7, blue: 0.2))
-                                    .padding(8)
-                                    .background(Color(red: 0.9, green: 0.7, blue: 0.2).opacity(0.12))
-                                    .clipShape(Circle())
+                                .padding(.horizontal, 8).padding(.vertical, 5)
+                                .background(Color(red: 0.1, green: 0.3, blue: 0.6).opacity(0.3))
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(Color(red: 0.4, green: 0.7, blue: 1.0).opacity(0.35), lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+
+                        // Waypoints
+                        if !hero.unlockedWaypoints.isEmpty {
+                            Button { showingWaypoints = true } label: {
+                                Image(systemName: "map.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color(red: 0.3, green: 0.8, blue: 1.0))
+                                    .padding(8)
+                                    .background(Color(red: 0.1, green: 0.5, blue: 0.8).opacity(0.15))
+                                    .clipShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .sheet(isPresented: $showingWaypoints) {
+                                WaypointView(engine: engine)
+                            }
+                        }
+
+                        // Skill tree
+                        Button { showingSkillTree = true } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color(red: 0.7, green: 0.4, blue: 1.0))
+                                    .padding(8)
+                                    .background(Color(red: 0.5, green: 0.2, blue: 1.0).opacity(0.12))
+                                    .clipShape(Circle())
+                                if hero.skillPoints > 0 {
+                                    Circle()
+                                        .fill(Color(red: 0.9, green: 0.6, blue: 1.0))
+                                        .frame(width: 7, height: 7)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .sheet(isPresented: $showingSkillTree) {
+                            SkillTreeView(engine: engine)
+                        }
                     }
+                    .padding(.horizontal, 20).padding(.vertical, 12)
                     .background(Color.black.opacity(0.55))
-                    .sheet(isPresented: $showingEquipment) {
-                        EquipmentView(engine: engine)
-                    }
                 }
 
                 Divider().background(.gray.opacity(0.2))

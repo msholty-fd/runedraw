@@ -1,179 +1,241 @@
+// swiftlint:disable type_body_length
 import SwiftUI
+
+// MARK: - Tab
+
+private enum ProfileTab: String, CaseIterable {
+    case profile  = "Profile"
+    case equipped = "Equipped"
+    case items    = "Items"
+
+    var icon: String {
+        switch self {
+        case .profile:  return "person.fill"
+        case .equipped: return "shield.fill"
+        case .items:    return "bag.fill"
+        }
+    }
+}
+
+// MARK: - Item Selection
+
+private enum ItemSelection {
+    case inventory(Card)
+    case equipped(EquipmentSlot)
+
+    var card: Card? {
+        if case .inventory(let c) = self { return c }
+        return nil
+    }
+    var slot: EquipmentSlot? {
+        if case .equipped(let s) = self { return s }
+        return nil
+    }
+}
+
+// MARK: - CharacterProfileView
 
 struct CharacterProfileView: View {
     let engine: GameEngine
-    @Environment(\.dismiss) private var dismiss
+    @State private var tab: ProfileTab = .profile
+    @State private var selection: ItemSelection? = nil
+    @State private var confirmDrop = false
+    @Namespace private var tabNS
 
+    private let panelHeight: CGFloat = 190
     private var hero: Hero { engine.hero ?? Hero(heroClass: .barbarian, startingDeck: []) }
 
     var body: some View {
-        ZStack {
-            background
-            ScrollView {
-                VStack(spacing: 0) {
-                    DismissHandle()
-                        .padding(.top, 8)
+        ZStack(alignment: .bottom) {
+            background.ignoresSafeArea()
 
-                    portraitSection
-                    identitySection
-                    expSection
-                    Divider().background(.white.opacity(0.08)).padding(.horizontal, 24).padding(.vertical, 16)
-                    attributesSection
-                    Divider().background(.white.opacity(0.08)).padding(.horizontal, 24).padding(.vertical, 16)
-                    vitalsSection
-                        .padding(.bottom, 40)
-                }
+            VStack(spacing: 0) {
+                DismissHandle().padding(.top, 8)
+                tabBar
+                Divider().background(.white.opacity(0.08))
+                tabContent
+            }
+
+            if let sel = selection {
+                itemPanel(sel)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(10)
             }
         }
+        .animation(.spring(response: 0.28, dampingFraction: 0.80), value: selection?.card?.id)
+        .onChange(of: tab) { _, _ in withAnimation { selection = nil } }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
+        .confirmationDialog(
+            "Drop \(selection?.card?.name ?? "")?",
+            isPresented: $confirmDrop, titleVisibility: .visible
+        ) {
+            Button("Drop Item", role: .destructive) {
+                if let card = selection?.card { engine.dropFromInventory(card) }
+                selection = nil
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This item will be permanently lost.")
+        }
     }
 
     // MARK: - Background
 
     private var background: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-            LinearGradient(
-                colors: classGradient,
-                startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.55)
-            )
-            .ignoresSafeArea()
+            Color.black
+            LinearGradient(colors: classGradient, startPoint: .top,
+                           endPoint: UnitPoint(x: 0.5, y: 0.45))
         }
     }
 
     private var classGradient: [Color] {
         switch hero.heroClass {
-        case .barbarian:
-            return [Color(red: 0.18, green: 0.05, blue: 0.02), .black]
-        case .rogue:
-            return [Color(red: 0.05, green: 0.04, blue: 0.14), .black]
-        case .sorceress:
-            return [Color(red: 0.04, green: 0.03, blue: 0.18), .black]
+        case .barbarian: return [Color(red: 0.18, green: 0.05, blue: 0.02), .black]
+        case .rogue:     return [Color(red: 0.05, green: 0.04, blue: 0.14), .black]
+        case .sorceress: return [Color(red: 0.04, green: 0.03, blue: 0.18), .black]
         }
     }
 
-    // MARK: - Portrait
-
-    private var portraitSection: some View {
-        HeroPortraitView(heroClass: hero.heroClass, size: 240)
-            .shadow(color: accentColor.opacity(0.40), radius: 28)
-            .padding(.top, 12)
-    }
-
-    // MARK: - Identity
-
-    private var identitySection: some View {
-        VStack(spacing: 6) {
-            Text(hero.heroClass.rawValue.uppercased())
-                .font(.system(size: 28, weight: .black))
-                .foregroundStyle(accentColor)
-                .tracking(6)
-                .shadow(color: accentColor.opacity(0.5), radius: 8)
-
-            Text(hero.heroClass.lore)
-                .font(.system(size: 12))
-                .foregroundStyle(.gray.opacity(0.65))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-
-            HStack(spacing: 8) {
-                Text("LEVEL \(hero.level)")
-                    .font(.system(size: 13, weight: .black))
-                    .foregroundStyle(.white)
-                    .tracking(2)
-                    .padding(.horizontal, 12).padding(.vertical, 5)
-                    .background(accentColor.opacity(0.18))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(accentColor.opacity(0.40), lineWidth: 1))
-            }
-            .padding(.top, 4)
+    private var accent: Color {
+        switch hero.heroClass {
+        case .barbarian: return Color(red: 1.0,  green: 0.45, blue: 0.10)
+        case .rogue:     return Color(red: 0.12, green: 0.88, blue: 0.68)
+        case .sorceress: return Color(red: 0.72, green: 0.38, blue: 1.00)
         }
-        .padding(.top, 16)
     }
 
-    // MARK: - EXP Bar
+    // MARK: - Tab Bar
 
-    private var expSection: some View {
-        VStack(spacing: 5) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.06))
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [accentColor.opacity(0.80), accentColor.opacity(0.45)],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geo.size.width * hero.expProgress)
-                        .animation(.easeOut(duration: 0.6), value: hero.expProgress)
+    private var tabBar: some View {
+        HStack(spacing: 0) {
+            ForEach(ProfileTab.allCases, id: \.self) { t in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { tab = t }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: t.icon)
+                            .font(.system(size: 14, weight: tab == t ? .bold : .regular))
+                        Text(t.rawValue.uppercased())
+                            .font(.system(size: 9, weight: .black)).tracking(1)
+                    }
+                    .foregroundStyle(tab == t ? accent : .gray.opacity(0.40))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .overlay(alignment: .bottom) {
+                        if tab == t {
+                            Rectangle().fill(accent).frame(height: 2)
+                                .matchedGeometryEffect(id: "indicator", in: tabNS)
+                        }
+                    }
                 }
+                .buttonStyle(.plain)
             }
-            .frame(height: 6)
-            .padding(.horizontal, 32)
-
-            Text("\(hero.experience) / \(hero.expToNextLevel) XP")
-                .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.5))
         }
-        .padding(.top, 12)
+        .padding(.horizontal, 8)
     }
 
-    // MARK: - Attributes
+    // MARK: - Content Router
 
-    private var attributesSection: some View {
-        VStack(spacing: 0) {
-            sectionHeader("ATTRIBUTES")
-            VStack(spacing: 10) {
-                ForEach(StatKey.allCases, id: \.self) { key in
-                    statRow(key: key)
+    @ViewBuilder
+    private var tabContent: some View {
+        switch tab {
+        case .profile:  profileTab
+        case .equipped: equippedTab
+        case .items:    itemsTab
+        }
+    }
+
+    // MARK: - Profile Tab
+
+    private var profileTab: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                HeroPortraitView(heroClass: hero.heroClass, equipment: hero.equipment, size: 175)
+                    .shadow(color: accent.opacity(0.38), radius: 22)
+                    .padding(.top, 14)
+
+                VStack(spacing: 6) {
+                    Text(hero.heroClass.rawValue.uppercased())
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundStyle(accent).tracking(5)
+                        .shadow(color: accent.opacity(0.45), radius: 8)
+                    Text("LEVEL \(hero.level)")
+                        .font(.system(size: 11, weight: .black)).tracking(2).foregroundStyle(.white)
+                        .padding(.horizontal, 12).padding(.vertical, 4)
+                        .background(accent.opacity(0.15)).clipShape(Capsule())
+                        .overlay(Capsule().stroke(accent.opacity(0.35), lineWidth: 1))
                 }
+                .padding(.top, 10)
+
+                expBar.padding(.top, 10)
+
+                profileDivider
+
+                sectionHeader("ATTRIBUTES")
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    ForEach(StatKey.allCases, id: \.self) { statTile(key: $0) }
+                }
+                .padding(.horizontal, 20).padding(.top, 10)
+
+                profileDivider
+
+                sectionHeader("VITALS")
+                vitalsRows
+                    .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 36)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 10)
         }
     }
 
-    private func statRow(key: StatKey) -> some View {
-        let value = hero.stats[key]
-        let maxDisplay = 30
-        let fraction = min(1.0, Double(value) / Double(maxDisplay))
-
-        return HStack(spacing: 10) {
-            Text(key.shortName)
-                .font(.system(size: 11, weight: .black))
-                .foregroundStyle(key.themeColor)
-                .tracking(1)
-                .frame(width: 32, alignment: .leading)
-
-            Text("\(value)")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 26, alignment: .trailing)
-                .contentTransition(.numericText())
-
+    private var expBar: some View {
+        VStack(spacing: 4) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06))
                     RoundedRectangle(cornerRadius: 3)
                         .fill(LinearGradient(
-                            colors: [key.themeColor, key.themeColor.opacity(0.50)],
-                            startPoint: .leading, endPoint: .trailing
-                        ))
-                        .frame(width: geo.size.width * fraction)
+                            colors: [accent.opacity(0.80), accent.opacity(0.42)],
+                            startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * hero.expProgress)
+                        .animation(.easeOut(duration: 0.5), value: hero.expProgress)
                 }
             }
-            .frame(height: 5)
-
-            Text(bonusLabel(for: key))
-                .font(.system(size: 10))
-                .foregroundStyle(key.themeColor.opacity(0.70))
-                .frame(width: 52, alignment: .trailing)
+            .frame(height: 5).padding(.horizontal, 32)
+            Text("\(hero.experience) / \(hero.expToNextLevel) XP")
+                .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.40))
         }
     }
 
-    private func bonusLabel(for key: StatKey) -> String {
+    @ViewBuilder
+    private func statTile(key: StatKey) -> some View {
+        let value = hero.stats[key]
+        let frac = min(1.0, Double(value) / 28.0)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(key.shortName)
+                    .font(.system(size: 10, weight: .black)).foregroundStyle(key.themeColor).tracking(1)
+                Spacer()
+                Text("\(value)").font(.system(size: 14, weight: .black)).foregroundStyle(.white)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(LinearGradient(colors: [key.themeColor, key.themeColor.opacity(0.42)],
+                                             startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * frac)
+                }
+            }
+            .frame(height: 4)
+            Text(bonusLabel(key)).font(.system(size: 10)).foregroundStyle(key.themeColor.opacity(0.65))
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(key.themeColor.opacity(0.06))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(key.themeColor.opacity(0.18), lineWidth: 1)))
+    }
+
+    private func bonusLabel(_ key: StatKey) -> String {
         switch key {
         case .strength:     return "+\(hero.statAttackBonus) ATK"
         case .dexterity:    return "+\(hero.statDefenseBonus) DEF"
@@ -182,88 +244,287 @@ struct CharacterProfileView: View {
         }
     }
 
-    // MARK: - Vitals
-
-    private var vitalsSection: some View {
-        VStack(spacing: 0) {
-            sectionHeader("VITALS")
-            VStack(spacing: 12) {
-                vitalRow(icon: "heart.fill", label: "Health",
-                         value: "\(hero.currentHp) / \(hero.maxHp)",
-                         fraction: Double(hero.currentHp) / Double(max(1, hero.maxHp)),
-                         color: .red)
-
-                HStack(spacing: 20) {
-                    Text("💰  \(hero.gold) gold")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.25))
-
-                    Spacer()
-
-                    let deckCount = hero.deck.count + hero.hand.count + hero.discardPile.count
-                    Text("🃏  \(deckCount) cards")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.70))
-                }
-                .padding(.horizontal, 24)
+    private var vitalsRows: some View {
+        VStack(spacing: 10) {
+            vitalBar(icon: "heart.fill", label: "Health",
+                     value: "\(hero.currentHp) / \(hero.maxHp)",
+                     frac: Double(hero.currentHp) / Double(max(1, hero.maxHp)), color: .red)
+            HStack(spacing: 14) {
+                Text("💰  \(hero.gold) gold")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.25))
+                Spacer()
+                let dc = hero.deck.count + hero.hand.count + hero.discardPile.count
+                Text("🃏  \(dc) cards")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(0.65))
             }
-            .padding(.top, 10)
         }
     }
 
-    private func vitalRow(icon: String, label: String, value: String,
-                          fraction: Double, color: Color) -> some View {
-        VStack(spacing: 5) {
+    private func vitalBar(icon: String, label: String,
+                          value: String, frac: Double, color: Color) -> some View {
+        VStack(spacing: 4) {
             HStack {
                 Image(systemName: icon).font(.system(size: 11)).foregroundStyle(color)
                 Text(label).font(.system(size: 11, weight: .bold)).foregroundStyle(.gray)
                 Spacer()
                 Text(value).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
-                    .contentTransition(.numericText())
             }
-            .padding(.horizontal, 24)
-
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06))
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(LinearGradient(
-                            colors: [color, color.opacity(0.50)],
-                            startPoint: .leading, endPoint: .trailing
-                        ))
-                        .frame(width: geo.size.width * min(1, max(0, fraction)))
-                        .animation(.easeOut(duration: 0.5), value: fraction)
+                    RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(LinearGradient(colors: [color, color.opacity(0.45)],
+                                             startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * min(1, max(0, frac)))
+                        .animation(.easeOut(duration: 0.4), value: frac)
                 }
             }
-            .frame(height: 5)
-            .padding(.horizontal, 24)
+            .frame(height: 4)
         }
     }
 
-    // MARK: - Section Header
+    // MARK: - Equipped Tab
+
+    private var equippedTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                miniHeroBar
+                Divider().background(.white.opacity(0.08))
+                sectionHeader("EQUIPPED").padding(.top, 14).padding(.bottom, 2)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+                    ForEach(EquipmentSlot.allCases, id: \.self) { slot in
+                        EquippedSlotTile(
+                            slot: slot,
+                            card: hero.equipment.equipped(in: slot),
+                            isSelected: selection?.slot == .some(slot)
+                        )
+                        .onTapGesture {
+                            guard hero.equipment.equipped(in: slot) != nil else { return }
+                            let already = selection?.slot == .some(slot)
+                            withAnimation { selection = already ? nil : .equipped(slot) }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                if selection != nil { Color.clear.frame(height: panelHeight + 16) }
+            }
+            .padding(.bottom, 8)
+        }
+        .onTapGesture { if selection != nil { withAnimation { selection = nil } } }
+    }
+
+    // MARK: - Items Tab
+
+    private var itemsTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                miniHeroBar
+                Divider().background(.white.opacity(0.08))
+                HStack(alignment: .firstTextBaseline) {
+                    sectionHeader("INVENTORY").padding(.top, 14).padding(.bottom, 2)
+                    Spacer()
+                    Text("5×8  •  \(hero.inventory.count) items")
+                        .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.40))
+                        .padding(.trailing, 20).padding(.top, 14)
+                }
+                InventoryGridView(grid: hero.inventory, selectedId: selection?.card?.id) { card in
+                    let already = selection?.card?.id == card.id
+                    withAnimation { selection = already ? nil : .inventory(card) }
+                }
+                .padding(.horizontal, 16)
+                .simultaneousGesture(TapGesture().onEnded { })
+                if selection != nil { Color.clear.frame(height: panelHeight + 16) }
+            }
+            .padding(.bottom, 8)
+        }
+        .onTapGesture { if selection != nil { withAnimation { selection = nil } } }
+    }
+
+    // MARK: - Mini Hero Bar
+
+    private var miniHeroBar: some View {
+        HStack(spacing: 12) {
+            HeroPortraitView(heroClass: hero.heroClass, size: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(hero.heroClass.rawValue.uppercased())
+                    .font(.system(size: 10, weight: .black)).foregroundStyle(.gray).tracking(3)
+                HStack(spacing: 8) {
+                    Label("\(hero.currentHp)/\(hero.maxHp)", systemImage: "heart.fill")
+                        .font(.system(size: 11, weight: .bold)).foregroundStyle(.red)
+                    if hero.attackBonus  > 0 {
+                        Text("+\(hero.attackBonus) ATK").font(.system(size: 10)).foregroundStyle(.orange)
+                    }
+                    if hero.defenseBonus > 0 {
+                        Text("+\(hero.defenseBonus) DEF").font(.system(size: 10)).foregroundStyle(.cyan)
+                    }
+                }
+            }
+            Spacer()
+            Text("LVL \(hero.level)")
+                .font(.system(size: 11, weight: .black)).tracking(1).foregroundStyle(accent)
+                .padding(.horizontal, 10).padding(.vertical, 4)
+                .background(accent.opacity(0.12)).clipShape(Capsule())
+                .overlay(Capsule().stroke(accent.opacity(0.30), lineWidth: 1))
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+    }
+
+    // MARK: - Floating Item Panel
+
+    @ViewBuilder
+    private func itemPanel(_ sel: ItemSelection) -> some View {
+        VStack(spacing: 0) {
+            Capsule().fill(.gray.opacity(0.30)).frame(width: 36, height: 4).padding(.top, 10)
+            switch sel {
+            case .inventory(let card): inventoryPanel(card)
+            case .equipped(let slot):
+                if let card = hero.equipment.equipped(in: slot) {
+                    equippedPanel(slot: slot, card: card)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            Color(red: 0.10, green: 0.06, blue: 0.18)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(panelAccent(sel).opacity(0.22)).frame(height: 2)
+                }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.5), radius: 20)
+        .padding(.horizontal, 8).padding(.bottom, 8)
+        .allowsHitTesting(true)
+        .onTapGesture {}
+    }
+
+    private func inventoryPanel(_ card: Card) -> some View {
+        let canEquip = hero.meetsRequirements(for: card)
+        return HStack(alignment: .top, spacing: 14) {
+            VStack(spacing: 4) {
+                Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 32))
+                    .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
+                Text("\(card.size.w)×\(card.size.h)")
+                    .font(.system(size: 9, weight: .bold)).foregroundStyle(.gray.opacity(0.6))
+            }
+            .frame(width: 46)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(card.name).font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(card.isUnique ? card.rarity.color : .white)
+                    rarityBadge(card)
+                }
+                cardStatLines(card).lineLimit(3)
+                if let reqs = card.requirements, !reqs.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: canEquip ? "checkmark.circle.fill" : "lock.fill")
+                            .font(.system(size: 9)).foregroundStyle(canEquip ? .green : .red.opacity(0.85))
+                        Text("Requires \(reqs.description)").font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(canEquip ? .green.opacity(0.8)
+                                             : Color(red: 1.0, green: 0.35, blue: 0.35))
+                    }
+                }
+                if let fl = card.flavorText {
+                    Text(fl).font(.system(size: 10)).foregroundStyle(.gray.opacity(0.55))
+                        .italic().lineLimit(1)
+                }
+            }
+            Spacer()
+            VStack(spacing: 8) {
+                Button { engine.equipFromInventory(card); selection = nil } label: {
+                    Text("EQUIP").font(.system(size: 12, weight: .black))
+                        .foregroundStyle(canEquip ? .black : .gray.opacity(0.5))
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(canEquip
+                                    ? AnyShapeStyle(card.rarity.color)
+                                    : AnyShapeStyle(Color.white.opacity(0.07)))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain).disabled(!canEquip)
+                Button { confirmDrop = true } label: {
+                    Image(systemName: "trash").font(.system(size: 13)).foregroundStyle(.gray)
+                        .padding(8).background(Color.white.opacity(0.07)).clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+    }
+
+    private func equippedPanel(slot: EquipmentSlot, card: Card) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(spacing: 4) {
+                Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 32))
+                    .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
+                Text("\(card.size.w)×\(card.size.h)")
+                    .font(.system(size: 9, weight: .bold)).foregroundStyle(.gray.opacity(0.6))
+            }
+            .frame(width: 46)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(card.name).font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(card.isUnique ? card.rarity.color : .white)
+                    rarityBadge(card)
+                }
+                Text("Equipped in \(slot.rawValue)").font(.system(size: 10)).foregroundStyle(.gray.opacity(0.5))
+                cardStatLines(card).lineLimit(3)
+            }
+            Spacer()
+            Button { engine.unequipToInventory(slot); selection = nil } label: {
+                VStack(spacing: 3) {
+                    Image(systemName: "arrow.down.to.line").font(.system(size: 14))
+                    Text("UNEQUIP").font(.system(size: 9, weight: .black)).tracking(1)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Color.white.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+    }
+
+    private func panelAccent(_ sel: ItemSelection) -> Color {
+        switch sel {
+        case .inventory(let c): return c.rarity.color
+        case .equipped(let s):  return hero.equipment.equipped(in: s)?.rarity.color ?? .gray
+        }
+    }
+
+    // MARK: - Shared helpers
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .black))
-            .foregroundStyle(.gray.opacity(0.45))
-            .tracking(3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
+            .font(.system(size: 10, weight: .black)).foregroundStyle(.gray.opacity(0.45)).tracking(3)
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20)
     }
 
-    // MARK: - Helpers
+    private var profileDivider: some View {
+        Divider().background(.white.opacity(0.08)).padding(.horizontal, 24).padding(.vertical, 14)
+    }
 
-    private var accentColor: Color {
-        switch hero.heroClass {
-        case .barbarian: return Color(red: 1.0,  green: 0.45, blue: 0.10)
-        case .rogue:     return Color(red: 0.12, green: 0.88, blue: 0.68)
-        case .sorceress: return Color(red: 0.72, green: 0.38, blue: 1.00)
+    private func rarityBadge(_ card: Card) -> some View {
+        Text(card.rarity.rawValue.uppercased())
+            .font(.system(size: 7, weight: .black)).foregroundStyle(card.rarity.color.opacity(0.9)).tracking(2)
+            .padding(.horizontal, 4).padding(.vertical, 2)
+            .background(card.rarity.color.opacity(0.12)).clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    private func cardStatLines(_ card: Card) -> some View {
+        if !card.modifiers.isEmpty {
+            Text(card.modifiers.map(\.label).joined(separator: "  ·  "))
+                .font(.system(size: 11)).foregroundStyle(Color(red: 0.5, green: 0.9, blue: 0.5))
+        } else if let bonus = card.statBonus, !bonus.description.isEmpty {
+            Text(bonus.description.components(separatedBy: "\n").joined(separator: "  ·  "))
+                .font(.system(size: 11)).foregroundStyle(.green.opacity(0.8))
         }
     }
 }
 
 #Preview {
     let engine = GameEngine()
-    engine.startNewGame(with: .sorceress)
+    engine.startNewGame(with: .barbarian)
     return CharacterProfileView(engine: engine)
 }

@@ -40,12 +40,15 @@ class GameEngine {
             currentAreaIndex  = save.currentAreaIndex
             totalAreasCleared = save.totalAreasCleared
             screen            = save.isInCombat ? .combat : .dungeonMap
+        } else if let lastClass = SaveManager.loadLastClass() {
+            startNewGame(with: lastClass)
         }
     }
 
     // MARK: - New Game
 
     func startNewGame(with heroClass: HeroClass) {
+        SaveManager.saveLastClass(heroClass)
         SaveManager.deleteSave()
         let deck = CardDatabase.startingDeck(for: heroClass)
         hero              = Hero(heroClass: heroClass, startingDeck: deck)
@@ -256,26 +259,29 @@ class GameEngine {
 
         // Damage
         if fx.damage > 0 {
-            let base  = fx.damage + (hero?.attackBonus ?? 0)
-            let multi = (hero?.weakStacks ?? 0) > 0 ? 0.75 : 1.0
-            let dmg   = max(1, Int(Double(base) * multi))
+            let isPhysical   = fx.damageType == .physical
+            let scalingBonus = isPhysical ? (hero?.attackBonus ?? 0) : (hero?.spellpower ?? 0)
+            let base         = fx.damage + scalingBonus
+            let multi        = (hero?.weakStacks ?? 0) > 0 ? 0.75 : 1.0
+            let dmg          = max(1, Int(Double(base) * multi))
+            let typeTag      = isPhysical ? "" : " (\(fx.damageType.rawValue))"
 
             if fx.damageAllEnemies {
                 for idx in currentEnemies.indices {
                     currentEnemies[idx].takeDamage(dmg)
                 }
-                log("\(card.name): All enemies take \(dmg) damage.")
+                log("\(card.name): All enemies take \(dmg)\(typeTag) damage.")
             } else if enemyIndex < currentEnemies.count {
                 for _ in 0..<fx.times {
                     currentEnemies[enemyIndex].takeDamage(dmg)
                 }
                 let suffix = fx.times > 1 ? " ×\(fx.times)" : ""
-                log("\(card.name): \(currentEnemies[enemyIndex].name) takes \(dmg) damage\(suffix).")
+                log("\(card.name): \(currentEnemies[enemyIndex].name) takes \(dmg)\(typeTag) damage\(suffix).")
             }
 
-            // Poison on Hit (equipment bonus)
+            // Poison on Hit — physical attacks only (equipment bonus)
             let poisonBonus = hero?.poisonOnHit ?? 0
-            if poisonBonus > 0 && enemyIndex < currentEnemies.count {
+            if isPhysical && poisonBonus > 0 && enemyIndex < currentEnemies.count {
                 currentEnemies[enemyIndex].poisonStacks += poisonBonus
                 log("☠️ Poison on Hit: \(currentEnemies[enemyIndex].name) +\(poisonBonus) poison.")
             }

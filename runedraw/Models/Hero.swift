@@ -57,7 +57,7 @@ enum StatKey: String, CaseIterable, Codable {
         case .strength:     return "+1 Attack per 5 pts · unlocks heavy gear"
         case .dexterity:    return "+1 Defense per 5 pts · unlocks light gear"
         case .vitality:     return "+3 Max HP per point"
-        case .intelligence: return "+1 Energy per 10 pts · unlocks magic gear"
+        case .intelligence: return "+1 Spellpower per 4 pts · +1 Energy per 10 pts · unlocks magic gear"
         }
     }
 
@@ -304,15 +304,17 @@ struct Hero: Codable {
     var cardDrawCount: Int  { heroClass.baseCardDraw + equipment.totalBonuses.cardDrawBonus }
     var attackBonus: Int    { baseAttackBonus + equipment.totalBonuses.attackBonus + stats.strength / 5 }
     var defenseBonus: Int   { baseDefenseBonus + equipment.totalBonuses.defenseBonus + stats.dexterity / 5 }
+    var spellpower: Int     { equipment.totalBonuses.spellpowerBonus + stats.intelligence / 4 }
     var lifeOnKill: Int     { equipment.totalBonuses.lifeOnKill }
     var startingBlock: Int  { equipment.totalBonuses.startingBlock }
     var poisonOnHit: Int    { equipment.totalBonuses.poisonOnHit }
     var isAlive: Bool       { currentHp > 0 }
 
     // Stat bonuses from attributes (for display)
-    var statAttackBonus: Int    { stats.strength / 5 }
-    var statDefenseBonus: Int   { stats.dexterity / 5 }
-    var statEnergyBonus: Int    { stats.intelligence / 10 }
+    var statAttackBonus: Int      { stats.strength / 5 }
+    var statDefenseBonus: Int     { stats.dexterity / 5 }
+    var statSpellpowerBonus: Int  { stats.intelligence / 4 }
+    var statEnergyBonus: Int      { stats.intelligence / 10 }
 
     func meetsRequirements(for card: Card) -> Bool {
         guard let reqs = card.requirements, !reqs.isEmpty else { return true }

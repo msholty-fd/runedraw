@@ -357,7 +357,7 @@ struct EquipmentView: View {
 
 // MARK: - Equipped Slot Tile (compact 2-col)
 
-private struct EquippedSlotTile: View {
+struct EquippedSlotTile: View {
     let slot: EquipmentSlot
     let card: Card?
     let isSelected: Bool
