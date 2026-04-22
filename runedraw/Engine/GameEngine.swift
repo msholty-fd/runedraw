@@ -34,6 +34,10 @@ class GameEngine {
     // Hero attack queue — filled by play(), resolved (after enemy blocks) in endTurn()
     var queuedHeroDamage: [UUID: Int] = [:]     // enemyId → total queued damage
 
+    // Per-turn combat state
+    var lastPlayedCardType: CardType? = nil   // combo mechanic: tracks type of last card played
+    var amplifyActive: Bool = false            // Sorceress: next attack card deals 2×
+
     // Combat reward summary — read by LootPickupView for animations
     var lastCombatExpGained: Int = 0
     var lastCombatGoldGained: Int = 0
@@ -264,9 +268,12 @@ class GameEngine {
         h.hand          = []
         h.block         = h.startingBlock
         h.currentEnergy = h.maxEnergy
+        h.combatStrength = 0
         hero = h
         combatLog = []
         queuedHeroDamage = [:]
+        lastPlayedCardType = nil
+        amplifyActive = false
         // Each enemy draws their opening block hand
         for idx in currentEnemies.indices { currentEnemies[idx].drawBlockHand() }
         log("⚔️ Combat begins!")
@@ -281,6 +288,7 @@ class GameEngine {
         (hero?.currentEnergy ?? 0) >= card.cost
     }
 
+    // swiftlint:disable cyclomatic_complexity function_body_length
     func play(_ card: Card, targeting enemyIndex: Int = 0) {
         guard var h = hero,
               canPlay(card),
@@ -288,34 +296,57 @@ class GameEngine {
 
         h.currentEnergy -= card.cost
         h.hand.remove(at: handIndex)
-        h.discardPile.append(card)
+        // Exhausted cards leave the game; all others go to the discard pile
+        if !card.effect.exhausts {
+            h.discardPile.append(card)
+        } else {
+            log("💨 \(card.name) exhausted — removed from your deck.")
+        }
         hero = h
 
         let fx = card.effect
 
-        // Damage
-        if fx.damage > 0 {
-            let isPhysical   = fx.damageType == .physical
-            let scalingBonus = isPhysical ? (hero?.attackBonus ?? 0) : (hero?.spellpower ?? 0)
-            let base         = fx.damage + scalingBonus
-            let multi        = (hero?.weakStacks ?? 0) > 0 ? 0.75 : 1.0
-            let dmg          = max(1, Int(Double(base) * multi))
-            let typeTag      = isPhysical ? "" : " (\(fx.damageType.rawValue))"
+        // Damage (including Shield Slam, Combo, Amplify, Strength)
+        let hasDamage = fx.damage > 0 || fx.damageFromBlock
+        if hasDamage {
+            let isPhysical = fx.damageType == .physical
+            let scalingBonus: Int
+            if isPhysical {
+                scalingBonus = (hero?.attackBonus ?? 0) + (hero?.combatStrength ?? 0)
+            } else {
+                scalingBonus = hero?.spellpower ?? 0
+            }
+            let baseDmg: Int
+            if fx.damageFromBlock {
+                baseDmg = max(1, hero?.block ?? 0) // Shield Slam — no scaling bonus
+            } else {
+                baseDmg = fx.damage + scalingBonus
+            }
+            let weakMult   = (hero?.weakStacks ?? 0) > 0 ? 0.75 : 1.0
+            let amplifyMult: Double = amplifyActive ? 2.0 : 1.0
+            if amplifyActive { amplifyActive = false; log("⚡ Amplified!") }
+            let perHit  = max(1, Int(Double(baseDmg) * weakMult * amplifyMult))
+            let comboAdd = (fx.comboBonus > 0 && lastPlayedCardType == .attack)
+                ? fx.comboBonus : 0
+            if comboAdd > 0 { log("🗡️ Combo! +\(comboAdd) bonus damage.") }
+            let typeTag = isPhysical ? "" : " (\(fx.damageType.rawValue))"
 
             if fx.damageAllEnemies {
+                let total = perHit + comboAdd
                 for enemy in currentEnemies {
-                    queuedHeroDamage[enemy.id, default: 0] += dmg
+                    queuedHeroDamage[enemy.id, default: 0] += total
                 }
-                log("\(card.name): Queued \(dmg)\(typeTag) damage vs all enemies.")
+                log("\(card.name): Queued \(total)\(typeTag) damage vs all enemies.")
             } else if enemyIndex < currentEnemies.count {
-                let totalHit = dmg * fx.times
+                let totalHit = (perHit * fx.times) + comboAdd
                 let target   = currentEnemies[enemyIndex]
                 queuedHeroDamage[target.id, default: 0] += totalHit
-                let suffix = fx.times > 1 ? " ×\(fx.times)" : ""
+                var suffix = fx.times > 1 ? " ×\(fx.times)" : ""
+                if comboAdd > 0 { suffix += " (combo)" }
                 log("\(card.name): Queued \(totalHit)\(typeTag) damage vs \(target.name)\(suffix).")
             }
 
-            // Poison on Hit — physical attacks only (equipment bonus)
+            // Equipment: Poison on Hit — physical attacks only
             let poisonBonus = hero?.poisonOnHit ?? 0
             if isPhysical && poisonBonus > 0 && enemyIndex < currentEnemies.count {
                 currentEnemies[enemyIndex].poisonStacks += poisonBonus
@@ -334,28 +365,57 @@ class GameEngine {
         if enemyIndex < currentEnemies.count {
             if fx.poisonStacks > 0 {
                 currentEnemies[enemyIndex].poisonStacks += fx.poisonStacks
-                log("\(currentEnemies[enemyIndex].name) poisoned (\(fx.poisonStacks) stacks).")
+                log("☠️ \(currentEnemies[enemyIndex].name) poisoned (\(fx.poisonStacks) stacks).")
+            }
+            if fx.applyBurn > 0 {
+                currentEnemies[enemyIndex].burnStacks += fx.applyBurn
+                log("🔥 \(currentEnemies[enemyIndex].name) burning (\(fx.applyBurn) stacks).")
             }
             if fx.weakStacks > 0 {
                 currentEnemies[enemyIndex].weakStacks += fx.weakStacks
+                log("💀 \(currentEnemies[enemyIndex].name) weakened (\(fx.weakStacks) stacks).")
             }
             if fx.vulnerableStacks > 0 {
                 currentEnemies[enemyIndex].vulnerableStacks += fx.vulnerableStacks
+                log("🎯 \(currentEnemies[enemyIndex].name) vulnerable (\(fx.vulnerableStacks) stacks).")
             }
+        }
+
+        // Burn all enemies
+        if fx.applyBurnAll && fx.applyBurn > 0 {
+            for idx in currentEnemies.indices {
+                currentEnemies[idx].burnStacks += fx.applyBurn
+            }
+            log("🔥 All enemies burning (\(fx.applyBurn) stacks).")
+        }
+
+        // Barbarian Strength gain
+        if fx.strengthGain > 0 {
+            hero?.combatStrength += fx.strengthGain
+            log("💪 Gained \(fx.strengthGain) Strength. Total: \(hero?.combatStrength ?? 0).")
+        }
+
+        // Sorceress Amplify — next attack 2×
+        if fx.amplifyNext {
+            amplifyActive = true
+            log("⚡ Amplify active — next attack deals double damage.")
         }
 
         // Utility
         if fx.draw > 0         { drawCards(fx.draw) }
         if fx.energyGain > 0   { hero?.currentEnergy += fx.energyGain }
-        if fx.heal > 0         { hero?.heal(fx.heal); log("Healed \(fx.heal) HP.") }
+        if fx.heal > 0         { hero?.heal(fx.heal); log("❤️ Healed \(fx.heal) HP.") }
 
-        // Life on Kill + EXP + Gold
+        // Track last card type for combo mechanic
+        lastPlayedCardType = card.type
+
+        // Kill check
         let justDied = currentEnemies.filter { !$0.isAlive }.count
         if justDied > 0 { awardKills(count: justDied) }
-
         currentEnemies.removeAll { !$0.isAlive }
         if currentEnemies.isEmpty { endCombat(won: true) }
     }
+    // swiftlint:enable cyclomatic_complexity function_body_length
 
     // MARK: - End Turn → Block Phase
 
@@ -508,12 +568,27 @@ class GameEngine {
         currentEnemies.removeAll { !$0.isAlive }
         if currentEnemies.isEmpty { endCombat(won: true); return }
 
+        // Log burn ticks before enemies start new turn
+        for idx in currentEnemies.indices {
+            let burn = currentEnemies[idx].burnStacks
+            if burn > 0 {
+                log("🔥 \(currentEnemies[idx].name) burns for \(burn) damage.")
+            }
+        }
         log("── Your Turn ──")
         hero?.startNewTurn()
         for idx in currentEnemies.indices {
-            currentEnemies[idx].startNewTurn()   // also calls drawBlockHand()
+            currentEnemies[idx].startNewTurn()   // poison/burn tick + drawBlockHand
         }
+        // Kill check after DoTs
+        let dotDead = currentEnemies.filter { !$0.isAlive }.count
+        if dotDead > 0 { awardKills(count: dotDead) }
+        currentEnemies.removeAll { !$0.isAlive }
+        if currentEnemies.isEmpty { endCombat(won: true); return }
+
         queuedHeroDamage = [:]
+        lastPlayedCardType = nil
+        amplifyActive = false
         drawCards(hero?.cardDrawCount ?? 5)
         autoSave()
     }
@@ -562,6 +637,10 @@ class GameEngine {
     // MARK: - Combat End
 
     private func endCombat(won: Bool) {
+        // Reset combat-only buffs
+        hero?.combatStrength = 0
+        lastPlayedCardType = nil
+        amplifyActive = false
         completeCurrentRoom()
         if won {
             log("🏆 Victory!")

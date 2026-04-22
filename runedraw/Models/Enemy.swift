@@ -72,6 +72,7 @@ struct Enemy: Identifiable, Codable {
     var currentHp: Int
     var block: Int = 0
     var poisonStacks: Int = 0
+    var burnStacks: Int = 0      // fire DoT: ticks each turn, decrements by 1
     var weakStacks: Int = 0
     var vulnerableStacks: Int = 0
     let actions: [EnemyIntent]
@@ -151,6 +152,7 @@ struct Enemy: Identifiable, Codable {
     mutating func startNewTurn() {
         block = 0
         if poisonStacks > 0     { currentHp -= poisonStacks; poisonStacks -= 1 }
+        if burnStacks > 0       { currentHp -= burnStacks;   burnStacks -= 1 }
         if weakStacks > 0       { weakStacks -= 1 }
         if vulnerableStacks > 0 { vulnerableStacks -= 1 }
         drawBlockHand()
@@ -159,7 +161,7 @@ struct Enemy: Identifiable, Codable {
     // MARK: - Custom Codable (decodeIfPresent for new fields)
 
     enum CodingKeys: String, CodingKey {
-        case id, name, icon, maxHp, currentHp, block, poisonStacks, weakStacks
+        case id, name, icon, maxHp, currentHp, block, poisonStacks, burnStacks, weakStacks
         case vulnerableStacks, actions, actionIndex, blockHand, blockHandSize, blockCardValue
     }
 
@@ -172,6 +174,7 @@ struct Enemy: Identifiable, Codable {
         currentHp        = try c.decode(Int.self,            forKey: .currentHp)
         block            = try c.decodeIfPresent(Int.self,   forKey: .block) ?? 0
         poisonStacks     = try c.decodeIfPresent(Int.self,   forKey: .poisonStacks) ?? 0
+        burnStacks       = try c.decodeIfPresent(Int.self,   forKey: .burnStacks) ?? 0
         weakStacks       = try c.decodeIfPresent(Int.self,   forKey: .weakStacks) ?? 0
         vulnerableStacks = try c.decodeIfPresent(Int.self,   forKey: .vulnerableStacks) ?? 0
         actions          = try c.decode([EnemyIntent].self,  forKey: .actions)

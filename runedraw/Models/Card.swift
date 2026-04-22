@@ -149,6 +149,77 @@ struct CardEffect: Codable {
     var heal: Int = 0
     var damageAllEnemies: Bool = false
     var times: Int = 1
+    // -- New mechanics --
+    /// Card is permanently removed from the deck after use.
+    var exhausts: Bool = false
+    /// Grant N Strength — each stack adds +1 to all physical damage this combat.
+    var strengthGain: Int = 0
+    /// If the last card played this turn was an Attack, deal N bonus damage.
+    var comboBonus: Int = 0
+    /// Apply N burn stacks to the targeted enemy (fire DoT, ticks like poison).
+    var applyBurn: Int = 0
+    /// Apply `applyBurn` stacks to ALL enemies instead of just the target.
+    var applyBurnAll: Bool = false
+    /// Deal damage equal to hero's current block (Shield Slam style).
+    var damageFromBlock: Bool = false
+    /// Your next attack card this turn deals double damage.
+    var amplifyNext: Bool = false
+
+    // MARK: - Custom decoder for backward compatibility
+
+    enum CodingKeys: String, CodingKey {
+        case damage, damageType, block, draw, energyGain, poisonStacks, weakStacks
+        case vulnerableStacks, heal, damageAllEnemies, times
+        case exhausts, strengthGain, comboBonus, applyBurn, applyBurnAll, damageFromBlock, amplifyNext
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        damage           = try c.decodeIfPresent(Int.self,       forKey: .damage) ?? 0
+        damageType       = try c.decodeIfPresent(DamageType.self, forKey: .damageType) ?? .physical
+        block            = try c.decodeIfPresent(Int.self,       forKey: .block) ?? 0
+        draw             = try c.decodeIfPresent(Int.self,       forKey: .draw) ?? 0
+        energyGain       = try c.decodeIfPresent(Int.self,       forKey: .energyGain) ?? 0
+        poisonStacks     = try c.decodeIfPresent(Int.self,       forKey: .poisonStacks) ?? 0
+        weakStacks       = try c.decodeIfPresent(Int.self,       forKey: .weakStacks) ?? 0
+        vulnerableStacks = try c.decodeIfPresent(Int.self,       forKey: .vulnerableStacks) ?? 0
+        heal             = try c.decodeIfPresent(Int.self,       forKey: .heal) ?? 0
+        damageAllEnemies = try c.decodeIfPresent(Bool.self,      forKey: .damageAllEnemies) ?? false
+        times            = try c.decodeIfPresent(Int.self,       forKey: .times) ?? 1
+        exhausts         = try c.decodeIfPresent(Bool.self,      forKey: .exhausts) ?? false
+        strengthGain     = try c.decodeIfPresent(Int.self,       forKey: .strengthGain) ?? 0
+        comboBonus       = try c.decodeIfPresent(Int.self,       forKey: .comboBonus) ?? 0
+        applyBurn        = try c.decodeIfPresent(Int.self,       forKey: .applyBurn) ?? 0
+        applyBurnAll     = try c.decodeIfPresent(Bool.self,      forKey: .applyBurnAll) ?? false
+        damageFromBlock  = try c.decodeIfPresent(Bool.self,      forKey: .damageFromBlock) ?? false
+        amplifyNext      = try c.decodeIfPresent(Bool.self,      forKey: .amplifyNext) ?? false
+    }
+
+    init(damage: Int = 0, damageType: DamageType = .physical, block: Int = 0,
+         draw: Int = 0, energyGain: Int = 0, poisonStacks: Int = 0,
+         weakStacks: Int = 0, vulnerableStacks: Int = 0, heal: Int = 0,
+         damageAllEnemies: Bool = false, times: Int = 1, exhausts: Bool = false,
+         strengthGain: Int = 0, comboBonus: Int = 0, applyBurn: Int = 0,
+         applyBurnAll: Bool = false, damageFromBlock: Bool = false, amplifyNext: Bool = false) {
+        self.damage           = damage
+        self.damageType       = damageType
+        self.block            = block
+        self.draw             = draw
+        self.energyGain       = energyGain
+        self.poisonStacks     = poisonStacks
+        self.weakStacks       = weakStacks
+        self.vulnerableStacks = vulnerableStacks
+        self.heal             = heal
+        self.damageAllEnemies = damageAllEnemies
+        self.times            = times
+        self.exhausts         = exhausts
+        self.strengthGain     = strengthGain
+        self.comboBonus       = comboBonus
+        self.applyBurn        = applyBurn
+        self.applyBurnAll     = applyBurnAll
+        self.damageFromBlock  = damageFromBlock
+        self.amplifyNext      = amplifyNext
+    }
 }
 
 struct Card: Identifiable, Codable {

@@ -236,6 +236,9 @@ struct Hero: Codable {
     var skillPoints: Int = 0
     var unlockedSkills: [String] = []
 
+    // Combat buffs — accumulate during a fight, reset when combat ends
+    var combatStrength: Int = 0
+
     // Waypoints (area indices with discovered waypoints)
     var unlockedWaypoints: [Int] = []
 
@@ -306,6 +309,7 @@ struct Hero: Codable {
         unlockedSkills      = try c.decodeIfPresent([String].self, forKey: .unlockedSkills) ?? []
         unlockedWaypoints   = try c.decodeIfPresent([Int].self,  forKey: .unlockedWaypoints) ?? []
         cardCollection      = try c.decodeIfPresent([Card].self, forKey: .cardCollection) ?? []
+        combatStrength      = try c.decodeIfPresent(Int.self,    forKey: .combatStrength) ?? 0
     }
 
     var maxEnergy: Int      { heroClass.baseEnergy + equipment.totalBonuses.energyBonus + stats.intelligence / 10 }

@@ -182,6 +182,15 @@ struct CombatView: View {
                     .padding(.leading, 10)
             }
 
+            if hero.combatStrength > 0 {
+                HStack(spacing: 3) {
+                    Text("⚔️").font(.system(size: 11))
+                    Text("+\(hero.combatStrength)").font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color(red: 1.0, green: 0.45, blue: 0.2))
+                }
+                .padding(.leading, 10)
+            }
+
             Spacer()
 
             HStack(spacing: 5) {
@@ -453,6 +462,9 @@ struct EnemyRow: View {
                     }
                     if enemy.poisonStacks > 0 {
                         StatusPill(icon: "☠️", label: "\(enemy.poisonStacks)", color: .green)
+                    }
+                    if enemy.burnStacks > 0 {
+                        StatusPill(icon: "🔥", label: "\(enemy.burnStacks)", color: Color(red: 1.0, green: 0.45, blue: 0.1))
                     }
                     if enemy.vulnerableStacks > 0 {
                         StatusPill(icon: "🎯", label: "Vuln", color: .orange)
