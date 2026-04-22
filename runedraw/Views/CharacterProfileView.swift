@@ -640,11 +640,11 @@ struct CharacterProfileView: View {
                 HStack(alignment: .firstTextBaseline) {
                     sectionHeader("INVENTORY").padding(.top, 14).padding(.bottom, 2)
                     Spacer()
-                    Text("5×8  •  \(hero.inventory.count) items")
+                    Text("\(hero.inventory.count) item\(hero.inventory.count == 1 ? "" : "s")")
                         .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.40))
                         .padding(.trailing, 20).padding(.top, 14)
                 }
-                InventoryGridView(grid: hero.inventory, selectedId: selection?.card?.id) { card in
+                GearListView(bag: hero.inventory, selectedId: selection?.card?.id) { card in
                     let already = selection?.card?.id == card.id
                     withAnimation { selection = already ? nil : .inventory(card) }
                 }
@@ -717,13 +717,9 @@ struct CharacterProfileView: View {
     private func inventoryPanel(_ card: Card) -> some View {
         let canEquip = hero.meetsRequirements(for: card)
         return HStack(alignment: .top, spacing: 14) {
-            VStack(spacing: 4) {
-                Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 32))
-                    .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
-                Text("\(card.size.w)×\(card.size.h)")
-                    .font(.system(size: 9, weight: .bold)).foregroundStyle(.gray.opacity(0.6))
-            }
-            .frame(width: 46)
+            Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 36))
+                .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
+                .frame(width: 46)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(card.name).font(.system(size: 15, weight: .bold))
@@ -769,13 +765,9 @@ struct CharacterProfileView: View {
 
     private func equippedPanel(slot: EquipmentSlot, card: Card) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            VStack(spacing: 4) {
-                Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 32))
-                    .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
-                Text("\(card.size.w)×\(card.size.h)")
-                    .font(.system(size: 9, weight: .bold)).foregroundStyle(.gray.opacity(0.6))
-            }
-            .frame(width: 46)
+            Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 36))
+                .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
+                .frame(width: 46)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(card.name).font(.system(size: 15, weight: .bold))

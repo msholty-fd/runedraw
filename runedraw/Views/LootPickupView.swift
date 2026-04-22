@@ -131,30 +131,19 @@ struct LootPickupView: View {
                     Spacer().frame(height: 60)
                 }
 
-                // Inventory grid — only show when there are equipment items in the loot
-                let hasEquipmentLoot = remaining.contains(where: { $0.isEquipment })
-                if hasEquipmentLoot || remaining.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("INVENTORY")
-                                .font(.system(size: 10, weight: .black))
-                                .foregroundStyle(.gray.opacity(0.55)).tracking(3)
-                            Spacer()
-                            Text("\(hero.inventory.count) items  •  5×8")
-                                .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.4))
+                // Bag + collection summary
+                VStack(spacing: 2) {
+                    GearBagStrip(bag: hero.inventory)
+                    if hero.cardCollection.count > 0 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "rectangle.stack.fill")
+                                .font(.system(size: 11)).foregroundStyle(.purple.opacity(0.6))
+                            Text("\(hero.cardCollection.count) card\(hero.cardCollection.count == 1 ? "" : "s") in collection")
+                                .font(.system(size: 11)).foregroundStyle(.gray.opacity(0.5))
                         }
-                        .padding(.horizontal, 20)
-                        InventoryGridView(grid: hero.inventory).padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20).padding(.bottom, 4)
                     }
-                } else {
-                    // Show collection count when only card drops remain
-                    HStack(spacing: 6) {
-                        Image(systemName: "rectangle.stack.fill")
-                            .font(.system(size: 11)).foregroundStyle(.purple.opacity(0.7))
-                        Text("\(hero.cardCollection.count) cards in collection")
-                            .font(.system(size: 11)).foregroundStyle(.gray.opacity(0.5))
-                    }
-                    .padding(.vertical, 8)
                 }
 
                 Spacer().frame(height: 14)
@@ -367,15 +356,8 @@ struct LootPickupView: View {
     // MARK: - Helpers
 
     private func canFit(_ card: Card) -> Bool {
-        // Combat cards always fit — they go to the collection, not the inventory grid
-        if !card.isEquipment { return true }
-        let inv = hero.inventory
-        for row in 0..<InventoryGrid.rows {
-            for col in 0..<InventoryGrid.cols {
-                if inv.canPlace(card, row: row, col: col) { return true }
-            }
-        }
-        return false
+        // Bag is unbounded — equipment always fits, combat cards go to collection
+        return true
     }
 
     private func removeCard(_ card: Card, pickUp: Bool) {
@@ -425,7 +407,7 @@ struct LootCardFull: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, 8).padding(.horizontal, 12)
 
-            Text("\(card.equipmentSlot?.rawValue ?? "")  •  \(card.size.w)×\(card.size.h)")
+            Text(card.equipmentSlot?.rawValue ?? "")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.gray.opacity(0.6)).tracking(1)
                 .padding(.top, 3).padding(.bottom, 12)

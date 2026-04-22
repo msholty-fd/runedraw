@@ -81,18 +81,18 @@ struct ShopView: View {
     // MARK: - Sell Section
 
     var sellSection: some View {
-        let inventory = hero.inventory.placements
-        guard !inventory.isEmpty else {
+        let items = hero.inventory.items
+        guard !items.isEmpty else {
             return AnyView(EmptyView())
         }
         return AnyView(
             VStack(alignment: .leading, spacing: 10) {
                 sectionLabel("SELL ITEMS")
-                ForEach(inventory) { placement in
+                ForEach(items) { card in
                     SellItemRow(
-                        card: placement.card,
-                        sellPrice: ShopDatabase.sellPrice(for: placement.card),
-                        onSell: { engine.sellItem(placement.card) }
+                        card: card,
+                        sellPrice: ShopDatabase.sellPrice(for: card),
+                        onSell: { engine.sellItem(card) }
                     )
                 }
             }
@@ -163,7 +163,7 @@ private struct ShopItemRow: View {
                             .foregroundStyle(meetsReqs ? .green.opacity(0.7) : Color(red: 1.0, green: 0.35, blue: 0.35))
                     }
                 }
-                Text("\(card.size.w)×\(card.size.h) · \(card.equipmentSlot?.rawValue ?? "")")
+                Text(card.equipmentSlot?.rawValue ?? "")
                     .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.45))
             }
 

@@ -166,27 +166,25 @@ struct EquipmentView: View {
         .padding(.bottom, 16)
     }
 
-    // MARK: - Inventory Grid
+    // MARK: - Bag (flat item list)
 
     var inventorySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                sectionLabel("INVENTORY")
+                sectionLabel("BAG")
                 Spacer()
-                Text("5×8  •  \(hero.inventory.count) items")
+                Text("\(hero.inventory.count) item\(hero.inventory.count == 1 ? "" : "s")")
                     .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.45))
                     .padding(.trailing, 20)
             }
-            InventoryGridView(
-                grid: hero.inventory,
+            GearListView(
+                bag: hero.inventory,
                 selectedId: selection?.card?.id
             ) { card in
                 let alreadySelected = selection?.card?.id == card.id
                 withAnimation { selection = alreadySelected ? nil : .inventory(card) }
             }
             .padding(.horizontal, 16)
-            // Don't let the grid swallow the background tap that dismisses selection
-            .allowsHitTesting(true)
             .simultaneousGesture(TapGesture().onEnded { })
         }
     }
@@ -231,14 +229,10 @@ struct EquipmentView: View {
     func inventoryPanel(_ card: Card) -> some View {
         let canEquip = hero.meetsRequirements(for: card)
         return HStack(alignment: .top, spacing: 14) {
-            // Icon + size
-            VStack(spacing: 4) {
-                Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 32))
-                    .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
-                Text("\(card.size.w)×\(card.size.h)")
-                    .font(.system(size: 9, weight: .bold)).foregroundStyle(.gray.opacity(0.6))
-            }
-            .frame(width: 46)
+            // Slot icon
+            Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 36))
+                .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
+                .frame(width: 46)
 
             // Stats
             VStack(alignment: .leading, spacing: 4) {
@@ -298,13 +292,9 @@ struct EquipmentView: View {
 
     func equippedPanel(slot: EquipmentSlot, card: Card) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            VStack(spacing: 4) {
-                Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 32))
-                    .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
-                Text("\(card.size.w)×\(card.size.h)")
-                    .font(.system(size: 9, weight: .bold)).foregroundStyle(.gray.opacity(0.6))
-            }
-            .frame(width: 46)
+            Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 36))
+                .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
+                .frame(width: 46)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {

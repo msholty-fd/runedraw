@@ -668,7 +668,7 @@ class GameEngine {
         guard var h = hero,
               let idx = groundLoot.firstIndex(where: { $0.id == card.id }) else { return }
         if card.isEquipment {
-            guard h.inventory.autoPlace(card) else { return }
+            h.inventory.add(card)
         } else {
             // Combat card → goes to collection, never to inventory grid
             h.cardCollection.append(card)
@@ -780,7 +780,7 @@ class GameEngine {
                 h.maxHp -= bonus.maxHp
                 h.currentHp = min(h.currentHp, h.maxHp)
             }
-            h.inventory.autoPlace(displaced)
+            h.inventory.add(displaced)
         }
 
         if let bonus = card.statBonus, bonus.maxHp > 0 {
@@ -800,9 +800,7 @@ class GameEngine {
                 h.maxHp -= bonus.maxHp
                 h.currentHp = min(h.currentHp, h.maxHp)
             }
-            if !h.inventory.autoPlace(displaced) {
-                h.equipment.equip(displaced)
-            }
+            h.inventory.add(displaced)
         }
         hero = h
         autoSave()
@@ -924,7 +922,7 @@ class GameEngine {
               itemIndex < shops[shopIndex].items.count else { return }
         let item = shops[shopIndex].items[itemIndex]
         guard !item.isPurchased, h.gold >= item.price else { return }
-        guard h.inventory.autoPlace(item.card) else { return }
+        h.inventory.add(item.card)
         h.gold -= item.price
         shops[shopIndex].items[itemIndex].isPurchased = true
         hero = h

@@ -216,7 +216,7 @@ struct Hero: Codable {
     var deck: [Card]
     var hand: [Card]
     var discardPile: [Card]
-    var inventory: InventoryGrid
+    var inventory: GearBag
 
     // Leveling
     var level: Int = 1
@@ -266,7 +266,7 @@ struct Hero: Codable {
         self.deck             = startingDeck.shuffled()
         self.hand             = []
         self.discardPile      = []
-        self.inventory        = InventoryGrid()
+        self.inventory        = GearBag()
         self.currentEnergy    = heroClass.baseEnergy
         self.level            = 1
         self.experience       = 0
@@ -291,7 +291,7 @@ struct Hero: Codable {
         deck             = try c.decode([Card].self,          forKey: .deck)
         hand             = try c.decode([Card].self,          forKey: .hand)
         discardPile      = try c.decode([Card].self,          forKey: .discardPile)
-        inventory        = try c.decodeIfPresent(InventoryGrid.self, forKey: .inventory) ?? InventoryGrid()
+        inventory        = try c.decodeIfPresent(GearBag.self, forKey: .inventory) ?? GearBag()
         currentEnergy    = try c.decode(Int.self,             forKey: .currentEnergy)
         block            = try c.decodeIfPresent(Int.self,    forKey: .block) ?? 0
         poisonStacks     = try c.decodeIfPresent(Int.self,    forKey: .poisonStacks) ?? 0
