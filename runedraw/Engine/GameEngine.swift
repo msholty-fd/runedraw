@@ -5,7 +5,7 @@ import Observation
 @Observable
 class GameEngine {
 
-    var screen: GameScreen = .classSelect
+    var screen: GameScreen = .characterSelect
     var hero: Hero?
     var currentEnemies: [Enemy] = []
     var currentArea: DungeonArea?
@@ -18,6 +18,10 @@ class GameEngine {
     var hasDungeonPortalOpen: Bool = false
     var currentEncounter: EncounterEvent?
     var currentEncounterResult: String?
+
+    // Multi-character
+    private(set) var currentSlot: Int = 0
+    var sharedStash: SharedStash = SharedStash()
 
     var currentRoomIsBoss: Bool = false
     var currentRoomIsElite: Bool = false
@@ -41,23 +45,35 @@ class GameEngine {
     // MARK: - Init / Load
 
     init() {
-        if let save = SaveManager.load() {
-            hero              = save.hero
-            currentEnemies    = save.currentEnemies
-            currentArea       = save.currentArea
-            currentAreaIndex  = save.currentAreaIndex
-            totalAreasCleared = save.totalAreasCleared
-            screen            = save.isInCombat ? .combat : .dungeonMap
-        } else if let lastClass = SaveManager.loadLastClass() {
-            startNewGame(with: lastClass)
-        }
+        sharedStash = SaveManager.loadStash()
+        screen      = .characterSelect
+    }
+
+    // MARK: - Character Select
+
+    /// Load an existing save into the engine and go to town/dungeon.
+    func loadCharacter(slot: Int) {
+        guard let save = SaveManager.load(slot: slot) else { return }
+        currentSlot       = slot
+        hero              = save.hero
+        currentEnemies    = save.currentEnemies
+        currentArea       = save.currentArea
+        currentAreaIndex  = save.currentAreaIndex
+        totalAreasCleared = save.totalAreasCleared
+        screen            = save.isInCombat ? .combat : .dungeonMap
+    }
+
+    /// Prepare to create a new character in the given slot, then show class selection.
+    func prepareNewCharacter(slot: Int) {
+        currentSlot = slot
+        screen      = .classSelect
     }
 
     // MARK: - New Game
 
     func startNewGame(with heroClass: HeroClass) {
         SaveManager.saveLastClass(heroClass)
-        SaveManager.deleteSave()
+        SaveManager.delete(slot: currentSlot)
         let deck = CardDatabase.startingDeck(for: heroClass)
         hero              = Hero(heroClass: heroClass, startingDeck: deck)
         currentAreaIndex  = 1
@@ -67,6 +83,15 @@ class GameEngine {
         hasDungeonPortalOpen = false
         shops             = ShopDatabase.generateShops(floorNumber: 1)
         screen            = .town
+        autoSave()
+    }
+
+    /// Return to the character select screen (saves current state first).
+    func exitToCharacterSelect() {
+        autoSave()
+        hero = nil
+        currentArea = nil
+        screen = .characterSelect
     }
 
     // MARK: - Dungeon Navigation
@@ -577,8 +602,11 @@ class GameEngine {
     // MARK: - Deck Management
 
     /// Move a card from collection into the active deck (max 60 cards).
+    /// Off-class cards cannot be added — they must be traded via the stash.
     func addCardToDeck(_ card: Card) {
         guard var h = hero else { return }
+        // Enforce class restriction
+        if let cardClass = card.heroClass, cardClass != h.heroClass { return }
         let deckTotal = h.deck.count + h.hand.count + h.discardPile.count
         guard deckTotal < Hero.maxDeckSize else { return }
         guard let idx = h.cardCollection.firstIndex(where: { $0.id == card.id }) else { return }
@@ -586,6 +614,30 @@ class GameEngine {
         h.deck.append(card)
         hero = h
         autoSave()
+    }
+
+    // MARK: - Shared Stash
+
+    /// Deposit a card from the hero's collection into the shared stash.
+    func depositToStash(_ card: Card) {
+        guard var h = hero,
+              let idx = h.cardCollection.firstIndex(where: { $0.id == card.id }) else { return }
+        h.cardCollection.remove(at: idx)
+        sharedStash.cards.append(card)
+        hero = h
+        autoSave()
+        SaveManager.saveStash(sharedStash)
+    }
+
+    /// Take a card from the shared stash into the hero's collection.
+    func withdrawFromStash(_ card: Card) {
+        guard var h = hero,
+              let idx = sharedStash.cards.firstIndex(where: { $0.id == card.id }) else { return }
+        sharedStash.cards.remove(at: idx)
+        h.cardCollection.append(card)
+        hero = h
+        autoSave()
+        SaveManager.saveStash(sharedStash)
     }
 
     /// Move a card from the active deck back to collection (min 20 cards).
@@ -725,7 +777,7 @@ class GameEngine {
             currentAreaIndex: currentAreaIndex,
             totalAreasCleared: totalAreasCleared,
             isInCombat: screen.id == "combat"
-        ))
+        ), slot: currentSlot)
     }
 
     // MARK: - EXP & Gold

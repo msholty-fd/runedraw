@@ -90,10 +90,21 @@ Both hero and enemies block. Flow per turn:
 
 Each card has a `defenseValue: Int` — how much damage it absorbs as a block card. Enemies have `blockHand: [EnemyCard]` drawn at turn start.
 
+### Multiple characters & shared stash
+
+- App launches to `CharacterSelectView` (screen `.characterSelect`); 3 save slots
+- Saves: `runedraw_save_0/1/2.json`; legacy `runedraw_save.json` auto-migrates to slot 0
+- `SaveManager.allSummaries()` returns `[CharacterSummary?]` for the select screen
+- `engine.loadCharacter(slot:)` — loads a save; `engine.prepareNewCharacter(slot:)` → classSelect
+- `engine.exitToCharacterSelect()` — saves current state, returns to character select
+- Shared stash: `SharedStash { cards: [Card] }` saved to `runedraw_stash.json`
+- `engine.depositToStash(_ card:)` / `engine.withdrawFromStash(_ card:)` move cards between hero's collection and stash
+- Stash accessible from TownView via the 🏦 button → `StashView`
+
 ### Deck-building (Diablo-style loot)
 
 - **Starting deck**: 8 class-specific cards from `CardDatabase.startingDeck(for:)`
-- **Droppable cards**: `CardDatabase.droppableCard(for:heroClass:rarity:)` returns class-specific or neutral cards. Class cards only drop for that class; neutral cards drop for anyone.
+- **Droppable cards**: `CardDatabase.droppableCard(for:heroClass:rarity:)` — own class cards are 2× weighted, plus one share each for the other two classes, plus neutrals. Off-class cards drop to encourage trading via the stash; they sit in `cardCollection` but cannot be added to the deck (enforced in `addCardToDeck`).
 - **`hero.deck`** — active deck used in combat
 - **`hero.cardCollection`** — cards owned but not in active deck
 - Deck limits: min 20, max 60 (`Hero.minDeckSize` / `Hero.maxDeckSize`)

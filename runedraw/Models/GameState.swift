@@ -1,6 +1,7 @@
 import Foundation
 
 enum GameScreen {
+    case characterSelect
     case classSelect
     case town
     case dungeonMap

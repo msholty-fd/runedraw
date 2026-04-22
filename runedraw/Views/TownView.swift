@@ -8,6 +8,7 @@ struct TownView: View {
     @State private var showingStats = false
     @State private var showingWaypoints = false
     @State private var showingProfile = false
+    @State private var showingStash = false
 
     private var hero: Hero { engine.hero ?? Hero(heroClass: .barbarian, startingDeck: []) }
 
@@ -41,8 +42,10 @@ struct TownView: View {
                         shopsGrid
                         statsButton
                         skillTreeButton
+                        stashButton
                         if !(hero.unlockedWaypoints.isEmpty) { waypointButton }
                         portalRow
+                        switchCharacterButton
                         enterButton
                     }
                     .padding(.horizontal, 20)
@@ -296,6 +299,65 @@ struct TownView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12)
                     .stroke(Color(red: 0.5, green: 0.9, blue: 1.0).opacity(0.2), lineWidth: 1))
         )
+    }
+
+    // MARK: - Stash Button
+
+    var stashButton: some View {
+        let stashCount = engine.sharedStash.cards.count
+        return Button { showingStash = true } label: {
+            HStack(spacing: 14) {
+                Text("🏦").font(.system(size: 28)).frame(width: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Shared Stash")
+                        .font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                    Text("Deposit cards for your other characters")
+                        .font(.system(size: 11)).foregroundStyle(.gray.opacity(0.55))
+                }
+                Spacer()
+                if stashCount > 0 {
+                    Text("\(stashCount)")
+                        .font(.system(size: 12, weight: .black))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Color(red: 1.0, green: 0.75, blue: 0.3))
+                        .clipShape(Capsule())
+                }
+                Image(systemName: "chevron.right").foregroundStyle(.gray.opacity(0.4)).font(.caption)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(red: 0.10, green: 0.07, blue: 0.02))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(red: 1.0, green: 0.75, blue: 0.3).opacity(0.25), lineWidth: 1))
+            )
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showingStash) {
+            StashView(engine: engine)
+        }
+    }
+
+    // MARK: - Switch Character Button
+
+    var switchCharacterButton: some View {
+        Button { engine.exitToCharacterSelect() } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 14)).foregroundStyle(.gray.opacity(0.6))
+                Text("SWITCH CHARACTER")
+                    .font(.system(size: 12, weight: .black)).tracking(2)
+                    .foregroundStyle(.gray.opacity(0.6))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Dungeon Buttons

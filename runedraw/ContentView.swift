@@ -6,6 +6,8 @@ struct ContentView: View {
     var body: some View {
         Group {
             switch engine.screen {
+            case .characterSelect:
+                CharacterSelectView(engine: engine)
             case .classSelect:
                 ClassSelectView(engine: engine)
             case .town:
@@ -29,13 +31,14 @@ struct ContentView: View {
 extension GameScreen {
     var id: String {
         switch self {
-        case .classSelect: return "classSelect"
-        case .town:        return "town"
-        case .dungeonMap:  return "dungeonMap"
-        case .combat:      return "combat"
-        case .encounter:   return "encounter"
-        case .loot:        return "loot"
-        case .gameOver:    return "gameOver"
+        case .characterSelect: return "characterSelect"
+        case .classSelect:     return "classSelect"
+        case .town:            return "town"
+        case .dungeonMap:      return "dungeonMap"
+        case .combat:          return "combat"
+        case .encounter:       return "encounter"
+        case .loot:            return "loot"
+        case .gameOver:        return "gameOver"
         }
     }
 }

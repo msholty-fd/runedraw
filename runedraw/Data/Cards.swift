@@ -13,14 +13,24 @@ struct CardDatabase {
 
     // MARK: - Droppable card pool (world drops, not skill-tree rewards)
 
-    /// Returns a random droppable combat card appropriate for `heroClass` and `rarity`.
-    /// Falls back to a neutral card if the class has nothing at that rarity.
+    /// Returns a random droppable combat card of the given `rarity`.
+    /// Pool is weighted: hero's own class cards appear 2× more often than off-class cards.
+    /// Neutral cards are always in the pool. Off-class cards can drop — they encourage trading.
     static func droppableCard(for heroClass: HeroClass, rarity: CardRarity) -> Card? {
-        let classPool   = cardPool(for: heroClass).filter { $0.rarity == rarity }
-        let neutralPool = neutralCardPool().filter { $0.rarity == rarity }
-        let combined    = classPool + neutralPool
-        guard let proto = combined.randomElement() else { return nil }
-        // Fresh UUID so every drop is unique
+        var pool: [Card] = []
+        // Own class: double-weight (added twice)
+        let ownPool = cardPool(for: heroClass).filter { $0.rarity == rarity }
+        pool += ownPool
+        pool += ownPool
+        // Other classes: single weight each
+        for other in HeroClass.allCases where other != heroClass {
+            pool += cardPool(for: other).filter { $0.rarity == rarity }
+        }
+        // Neutral: always available
+        pool += neutralCardPool().filter { $0.rarity == rarity }
+
+        guard let proto = pool.randomElement() else { return nil }
+        // Fresh UUID so every drop is a distinct card
         return Card(id: UUID(), name: proto.name, description: proto.description,
                     cost: proto.cost, type: proto.type, rarity: proto.rarity,
                     heroClass: proto.heroClass, effect: proto.effect,
