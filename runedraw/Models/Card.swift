@@ -164,6 +164,14 @@ struct CardEffect: Codable {
     var damageFromBlock: Bool = false
     /// Your next attack card this turn deals double damage.
     var amplifyNext: Bool = false
+    /// Apply N bleed stacks to the target. Bleed triggers when hero hits: each physical attack
+    /// hit triggers a bleed tick (deal bleedStacks damage, decrement by 1).
+    var applyBleed: Int = 0
+    /// Apply N chill stacks to the target. At freezeThreshold stacks, enemy is Frozen.
+    var applyChillStacks: Int = 0
+    /// ⚡ Arcane bonus: if this is the Nth+ card played this turn (N = skillPassives.arcaneThreshold),
+    /// deal this many extra arcane damage. 0 = no arcane keyword.
+    var arcaneBonus: Int = 0
 
     // MARK: - Custom decoder for backward compatibility
 
@@ -171,6 +179,7 @@ struct CardEffect: Codable {
         case damage, damageType, block, draw, energyGain, poisonStacks, weakStacks
         case vulnerableStacks, heal, damageAllEnemies, times
         case exhausts, strengthGain, comboBonus, applyBurn, applyBurnAll, damageFromBlock, amplifyNext
+        case applyBleed, applyChillStacks, arcaneBonus
     }
 
     init(from decoder: Decoder) throws {
@@ -193,6 +202,9 @@ struct CardEffect: Codable {
         applyBurnAll     = try c.decodeIfPresent(Bool.self,      forKey: .applyBurnAll) ?? false
         damageFromBlock  = try c.decodeIfPresent(Bool.self,      forKey: .damageFromBlock) ?? false
         amplifyNext      = try c.decodeIfPresent(Bool.self,      forKey: .amplifyNext) ?? false
+        applyBleed       = try c.decodeIfPresent(Int.self,       forKey: .applyBleed) ?? 0
+        applyChillStacks = try c.decodeIfPresent(Int.self,       forKey: .applyChillStacks) ?? 0
+        arcaneBonus      = try c.decodeIfPresent(Int.self,       forKey: .arcaneBonus) ?? 0
     }
 
     init(damage: Int = 0, damageType: DamageType = .physical, block: Int = 0,
@@ -200,7 +212,8 @@ struct CardEffect: Codable {
          weakStacks: Int = 0, vulnerableStacks: Int = 0, heal: Int = 0,
          damageAllEnemies: Bool = false, times: Int = 1, exhausts: Bool = false,
          strengthGain: Int = 0, comboBonus: Int = 0, applyBurn: Int = 0,
-         applyBurnAll: Bool = false, damageFromBlock: Bool = false, amplifyNext: Bool = false) {
+         applyBurnAll: Bool = false, damageFromBlock: Bool = false, amplifyNext: Bool = false,
+         applyBleed: Int = 0, applyChillStacks: Int = 0, arcaneBonus: Int = 0) {
         self.damage           = damage
         self.damageType       = damageType
         self.block            = block
@@ -219,6 +232,9 @@ struct CardEffect: Codable {
         self.applyBurnAll     = applyBurnAll
         self.damageFromBlock  = damageFromBlock
         self.amplifyNext      = amplifyNext
+        self.applyBleed       = applyBleed
+        self.applyChillStacks = applyChillStacks
+        self.arcaneBonus      = arcaneBonus
     }
 }
 

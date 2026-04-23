@@ -6,6 +6,12 @@ struct CombatView: View {
     @State private var showLevelUp = false
     @State private var levelText = ""
     @State private var energyPulse = false
+    /// Cards that have completed their deal-in animation and are fully visible.
+    @State private var revealedCardIDs: Set<UUID> = []
+    /// Current impact effect shown over the enemy section.
+    @State private var combatEffect: CombatEffectData? = nil
+    /// Whether the discard pile sheet is showing.
+    @State private var showingDiscard: Bool = false
 
     private var hero: Hero { engine.hero ?? Hero(heroClass: .barbarian, startingDeck: []) }
 
@@ -54,6 +60,16 @@ struct CombatView: View {
 
                 Divider().background(.gray.opacity(0.15))
 
+                if !engine.playedCards.isEmpty && !engine.isBlockPhase {
+                    playedCardsTray
+                        .padding(.horizontal, 12)
+                        .background(Color.black.opacity(0.3))
+                }
+
+                deckStatusBar
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+
                 handSection
                     .frame(height: 174)
 
@@ -70,6 +86,18 @@ struct CombatView: View {
                     endRadius: 420
                 )
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .transition(.opacity)
+            }
+
+            // Impact effect — floats over the enemy section
+            if let effect = combatEffect {
+                VStack {
+                    Spacer().frame(height: 80)   // push into the enemy area
+                    CombatEffectView(data: effect)
+                        .id(effect.id)           // new ID = new view = fresh animation
+                    Spacer()
+                }
                 .allowsHitTesting(false)
                 .transition(.opacity)
             }
@@ -120,8 +148,13 @@ struct CombatView: View {
                 withAnimation(.easeOut(duration: 0.4)) { showLevelUp = false }
             }
         }
-        .onChange(of: hero.hand.count) { old, new in
-            if new > old { SoundManager.cardDraw() }
+        .onAppear { revealNewCards() }
+        .onChange(of: hero.hand.map(\.id)) { old, new in
+            if new.count > old.count { SoundManager.cardDraw() }
+            revealNewCards()
+        }
+        .sheet(isPresented: $showingDiscard) {
+            DiscardPileSheet(cards: hero.discardPile)
         }
     }
 
@@ -197,6 +230,15 @@ struct CombatView: View {
                 .padding(.leading, 10)
             }
 
+            if engine.combatEvasionCharges > 0 {
+                HStack(spacing: 3) {
+                    Text("💨").font(.system(size: 11))
+                    Text("×\(engine.combatEvasionCharges)").font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color(red: 0.4, green: 0.9, blue: 0.6))
+                }
+                .padding(.leading, 10)
+            }
+
             Spacer()
 
             HStack(spacing: 5) {
@@ -242,24 +284,53 @@ struct CombatView: View {
                         }
                         .padding(.vertical, 6)
                     } else {
-                        CardView(
-                            card: card,
-                            isPlayable: engine.canPlay(card)
-                        ) {
-                            guard engine.canPlay(card) else { return }
+                        let isRevealed = revealedCardIDs.contains(card.id)
+                        let canPlay    = engine.canPlay(card)
+
+                        CardView(card: card, isPlayable: canPlay) {
+                            guard canPlay else { return }
                             SoundManager.cardPlay()
                             engine.play(card, targeting: 0)
+                            // Show impact animation immediately when a damage card is played.
+                            let fx = card.effect
+                            if fx.damage > 0 || fx.damageFromBlock {
+                                combatEffect = CombatEffectData(damageType: fx.damageType, targetIndex: 0)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+                                    combatEffect = nil
+                                }
+                            }
                         }
                         .padding(.vertical, 6)
+                        // Deal-in stagger: cards rise from below into place.
+                        .offset(y: isRevealed ? 0 : 90)
+                        .opacity(isRevealed ? (canPlay ? 1.0 : 0.45) : 0.0)
+                        .animation(.spring(response: 0.40, dampingFraction: 0.74),
+                                   value: isRevealed)
                         .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .scale(scale: 0.5).combined(with: .opacity)
+                            insertion: .identity,
+                            removal: .scale(scale: 0.8).combined(with: .opacity)
                         ))
                     }
                 }
             }
             .padding(.horizontal, 16)
             .animation(.spring(response: 0.32, dampingFraction: 0.72), value: hero.hand.map(\.id))
+        }
+    }
+
+    /// Stagger newly-drawn cards into `revealedCardIDs` one at a time.
+    private func revealNewCards() {
+        let currentIDs = Set(hero.hand.map(\.id))
+        // Drop IDs for cards no longer in hand.
+        revealedCardIDs = revealedCardIDs.intersection(currentIDs)
+        // Find cards added since last reveal cycle, preserving hand order.
+        let toReveal = hero.hand.map(\.id).filter { !revealedCardIDs.contains($0) }
+        for (i, id) in toReveal.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.09) {
+                withAnimation(.spring(response: 0.40, dampingFraction: 0.72)) {
+                    _ = revealedCardIDs.insert(id)
+                }
+            }
         }
     }
 
@@ -384,6 +455,53 @@ struct CombatView: View {
         }
     }
 
+    // MARK: - Deck / Discard Status Bar
+
+    /// Compact row showing draw pile count and a tappable discard count.
+    private var deckStatusBar: some View {
+        HStack(spacing: 0) {
+            // Draw pile
+            HStack(spacing: 5) {
+                Image(systemName: "rectangle.stack.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.gray.opacity(0.5))
+                Text("\(hero.deck.count)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.25), value: hero.deck.count)
+                Text("in deck")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.gray.opacity(0.4))
+            }
+
+            Spacer()
+
+            // Discard pile — tappable
+            Button { showingDiscard = true } label: {
+                HStack(spacing: 5) {
+                    Text("discard")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.gray.opacity(0.4))
+                    Text("\(hero.discardPile.count)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(hero.discardPile.isEmpty
+                                         ? .gray.opacity(0.3)
+                                         : Color(red: 1.0, green: 0.55, blue: 0.2))
+                        .contentTransition(.numericText())
+                        .animation(.easeInOut(duration: 0.25), value: hero.discardPile.count)
+                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(hero.discardPile.isEmpty
+                                         ? .gray.opacity(0.25)
+                                         : Color(red: 1.0, green: 0.55, blue: 0.2).opacity(0.8))
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(hero.discardPile.isEmpty)
+        }
+    }
+
     private func logColor(for line: String) -> Color {
         if line.contains("──")       { return .gray }
         if line.contains("Victory")  { return .yellow }
@@ -392,6 +510,34 @@ struct CombatView: View {
         if line.contains("block")    { return .cyan }
         if line.contains("poison")   { return Color(red: 0.4, green: 0.9, blue: 0.4) }
         return .gray.opacity(0.7)
+    }
+
+    // MARK: - Played Cards Tray
+
+    private var playedCardsTray: some View {
+        VStack(spacing: 4) {
+            // Header
+            HStack {
+                Text("PLAYED THIS TURN")
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundStyle(.gray.opacity(0.5))
+                    .tracking(3)
+                Spacer()
+            }
+            .padding(.top, 6)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(engine.playedCards) { record in
+                        PlayedCardTile(record: record) {
+                            SoundManager.buttonTap()
+                            engine.unplayCard(record)
+                        }
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+        }
     }
 
     // MARK: - Equipment Activation Strip
@@ -508,6 +654,14 @@ struct EnemyRow: View {
                     }
                     if enemy.burnStacks > 0 {
                         StatusPill(icon: "🔥", label: "\(enemy.burnStacks)", color: Color(red: 1.0, green: 0.45, blue: 0.1))
+                    }
+                    if enemy.bleedStacks > 0 {
+                        StatusPill(icon: "🩸", label: "\(enemy.bleedStacks)", color: Color(red: 0.85, green: 0.1, blue: 0.2))
+                    }
+                    if enemy.isFrozen {
+                        StatusPill(icon: "❄️", label: "FROZEN", color: Color(red: 0.4, green: 0.8, blue: 1.0))
+                    } else if enemy.chillStacks > 0 {
+                        StatusPill(icon: "❄️", label: "\(enemy.chillStacks)", color: Color(red: 0.6, green: 0.85, blue: 1.0))
                     }
                     if enemy.vulnerableStacks > 0 {
                         StatusPill(icon: "🎯", label: "Vuln", color: .orange)
@@ -650,6 +804,70 @@ struct EquipmentActivationTile: View {
         }
         .buttonStyle(.plain)
         .disabled(!canActivate)
+    }
+}
+
+// MARK: - Played Card Tile
+
+struct PlayedCardTile: View {
+    let record: PlayedCardRecord
+    let onRecall: () -> Void
+
+    private var canRecall: Bool { record.canRecall }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(record.card.effect.damageType.icon)
+                .font(.system(size: 13))
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(record.card.name)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                if !record.effectSummary.isEmpty {
+                    Text(record.effectSummary)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.gray.opacity(0.7))
+                }
+            }
+
+            // Persistent-effects badge (draw/heal — can recall but effects stay)
+            if record.hasPersistentEffects && canRecall {
+                Text("~")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(.orange.opacity(0.7))
+            }
+
+            if !canRecall {
+                // Damage cards: committed, can't be recalled
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.green.opacity(0.5))
+            } else {
+                Button(action: onRecall) {
+                    Image(systemName: "arrow.uturn.left.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color(red: 0.4, green: 0.7, blue: 1.0))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(canRecall
+                      ? Color(red: 0.12, green: 0.14, blue: 0.22)
+                      : Color(red: 0.08, green: 0.12, blue: 0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(canRecall
+                                ? Color(red: 0.3, green: 0.45, blue: 0.8).opacity(0.4)
+                                : Color.green.opacity(0.2),
+                                lineWidth: 1)
+                )
+        )
+        .opacity(canRecall ? 1.0 : 0.7)
     }
 }
 

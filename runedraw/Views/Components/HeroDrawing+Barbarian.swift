@@ -1,4 +1,3 @@
-// swiftlint:disable function_body_length cyclomatic_complexity
 import SwiftUI
 
 extension HeroDrawing {

@@ -217,6 +217,59 @@ struct PendingAttack: Identifiable {
     let rawDamage: Int      // before hero block or defense cards reduce it
 }
 
+// MARK: - Played Card Record (for the played-cards queue UI + recall)
+
+struct PlayedCardRecord: Identifiable {
+    let id: UUID = UUID()
+    let card: Card
+    let targetEnemyId: UUID?        // nil when no enemy targeted
+
+    // Reversible amounts actually applied
+    let damageContributions: [UUID: Int]   // enemyId → queued damage from this card
+    let blockGained: Int
+    let poisonApplied: Int                 // applied to targetEnemyId
+    let burnApplied: Int                   // applied to targetEnemyId (single-target block)
+    let burnAllApplied: Int                // applied to every enemy
+    let weakApplied: Int
+    let vulnerableApplied: Int
+    let bleedApplied: Int                  // applied to targetEnemyId
+    let chillApplied: Int                  // applied to targetEnemyId
+    let strengthGained: Int
+    let amplifyActivated: Bool
+
+    // Non-reversible (display only — draw/heal stay even on recall)
+    let drawCount: Int
+    let healAmount: Int
+
+    // Damage cards are non-recallable — damage already applied, can't undo HP changes.
+    // Status/buff/block cards can still be recalled and their effects reversed cleanly.
+    var canRecall: Bool {
+        !card.effect.exhausts &&
+        card.effect.damage == 0 &&
+        !card.effect.damageFromBlock
+    }
+    var hasPersistentEffects: Bool { drawCount > 0 || healAmount > 0 }
+
+    /// One-line summary of what this card did, e.g. "⚔️12 🛡️8"
+    var effectSummary: String {
+        var parts: [String] = []
+        let totalDmg = damageContributions.values.reduce(0, +)
+        if totalDmg > 0         { parts.append("⚔️\(totalDmg)") }
+        if blockGained > 0      { parts.append("🛡️\(blockGained)") }
+        if poisonApplied > 0    { parts.append("☠️\(poisonApplied)") }
+        if burnApplied > 0 || burnAllApplied > 0 { parts.append("🔥") }
+        if bleedApplied > 0     { parts.append("🩸\(bleedApplied)") }
+        if chillApplied > 0     { parts.append("❄️\(chillApplied)") }
+        if weakApplied > 0      { parts.append("💀") }
+        if vulnerableApplied > 0 { parts.append("🎯") }
+        if drawCount > 0        { parts.append("🃏\(drawCount)") }
+        if healAmount > 0       { parts.append("❤️\(healAmount)") }
+        if strengthGained > 0   { parts.append("💪\(strengthGained)") }
+        if amplifyActivated     { parts.append("⚡") }
+        return parts.isEmpty ? "" : parts.joined(separator: " ")
+    }
+}
+
 // MARK: - Bool chance helper
 
 private extension Bool {

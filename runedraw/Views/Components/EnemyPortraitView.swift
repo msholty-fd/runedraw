@@ -5,7 +5,6 @@ import SwiftUI
 enum EnemyArchetype {
     case skeleton, zombie, knight, mage, ghoul, golem, wraith
 
-    // swiftlint:disable cyclomatic_complexity
     static func detect(name: String) -> EnemyArchetype {
         let n = name.lowercased()
         if n.contains("skeleton") || n.contains("skeletal") { return .skeleton }
@@ -24,7 +23,6 @@ enum EnemyArchetype {
             n.contains("obsidian") || n.contains("shadowlord") { return .wraith }
         return .skeleton
     }
-    // swiftlint:enable cyclomatic_complexity
 
     var bgColors: (Color, Color) {
         switch self {
@@ -187,7 +185,6 @@ private struct CrownTriangle: Shape {
 
 // MARK: - Drawing Engine
 
-// swiftlint:disable function_body_length
 struct EnemyDrawing {
     static func draw(archetype: EnemyArchetype, ctx: GraphicsContext,
                      size: CGSize, isBoss: Bool) {
@@ -721,7 +718,6 @@ struct EnemyDrawing {
         }
     }
 }
-// swiftlint:enable function_body_length
 
 #Preview {
     let enemies = [

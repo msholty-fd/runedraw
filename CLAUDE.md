@@ -81,12 +81,13 @@ runedraw/
 
 Both hero and enemies block. Flow per turn:
 
-1. **Hero plays cards** — damage goes into `queuedHeroDamage[enemyId]`, not applied yet
+1. **Hero plays cards** — damage applies **immediately** via `applyDamageToEnemy(at:amount:)`. Enemy auto-blocks each hit greedily on the spot (highest DEF card first). Status effects (poison, burn, etc.) also apply immediately.
 2. **Hero ends turn** (`endTurn()`)
-3. **Enemy auto-blocks** hero's queued damage greedily (highest DEF card first)
-4. **Enemy acts**: non-attack actions execute immediately; attacks queue as `pendingAttacks`
-5. If attacks exist → `isBlockPhase = true`; hero taps cards to block
-6. **Hero confirms blocks** → `resolveBlockPhase()` applies remaining damage, clears state
+3. **Enemy acts**: non-attack actions execute immediately; attacks queue as `pendingAttacks`
+4. If attacks exist → `isBlockPhase = true`; hero taps cards to block
+5. **Hero confirms blocks** → `resolveBlockPhase()` applies remaining damage, clears state
+
+Impact animations play immediately when a damage card is tapped (type-specific: fire, ice, arcane, physical, poison). Damage cards are non-recallable from the played tray — damage is already done. Non-damage cards (block, buffs, status) can still be recalled and reversed.
 
 Each card has a `defenseValue: Int` — how much damage it absorbs as a block card. Enemies have `blockHand: [EnemyCard]` drawn at turn start.
 

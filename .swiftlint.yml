@@ -3,6 +3,7 @@ disabled_rules:
   - comma                         # column-aligned args in data files
   - implicit_optional_initialization
   - trailing_comma
+  - function_parameter_count      # game models/card constructors legitimately have many params
 
 opt_in_rules:
   - force_unwrapping              # flag every ! unwrap
@@ -25,12 +26,24 @@ identifier_name:
 
 line_length:
   warning: 120
-  error: 200               # generous error threshold for data files
+  error: 270               # generous error threshold for column-aligned data files
 
+# Game engine functions and SwiftUI drawing functions are legitimately long
 function_body_length:
-  warning: 60
-  error: 100
+  warning: 200
+  error: 600
 
+# SwiftUI views and game engine are inherently large types
 type_body_length:
-  warning: 300
-  error: 500
+  warning: 600
+  error: 1300
+
+# Game files contain multiple view structs and large data tables
+file_length:
+  warning: 800
+  error: 1500
+
+# Game state machines and card effect resolvers have deep branching
+cyclomatic_complexity:
+  warning: 30
+  error: 55

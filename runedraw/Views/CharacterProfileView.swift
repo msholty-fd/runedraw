@@ -1,4 +1,3 @@
-// swiftlint:disable type_body_length
 import SwiftUI
 
 // MARK: - Tab
@@ -42,6 +41,8 @@ struct CharacterProfileView: View {
     @State private var tab: ProfileTab = .profile
     @State private var selection: ItemSelection? = nil
     @State private var confirmDrop = false
+    @State private var selectedSkillNode: SkillNode? = nil
+    @State private var selectedCardForDetail: Card? = nil
     @Namespace private var tabNS
 
     private let panelHeight: CGFloat = 190
@@ -68,6 +69,23 @@ struct CharacterProfileView: View {
         .onChange(of: tab) { _, _ in withAnimation { selection = nil } }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
+        .sheet(item: $selectedSkillNode) { node in
+            SkillNodeDetailSheet(
+                node: node,
+                isUnlocked: engine.hero?.unlockedSkills.contains(node.id) ?? false,
+                isAvailable: {
+                    guard let h = engine.hero else { return false }
+                    let tree = SkillDatabase.tree(for: h.heroClass)
+                    return node.tier == 1 || tree.first(where: { $0.branch == node.branch && $0.tier == node.tier - 1 }).map { h.unlockedSkills.contains($0.id) } ?? false
+                }(),
+                hasPoints: (engine.hero?.skillPoints ?? 0) >= node.cost,
+                branchColor: SkillDatabase.branchColor(node.branch),
+                onUnlock: { engine.unlockSkill(node.id) }
+            )
+        }
+        .sheet(item: $selectedCardForDetail) { card in
+            CardDetailSheet(card: card)
+        }
         .confirmationDialog(
             "Drop \(selection?.card?.name ?? "")?",
             isPresented: $confirmDrop, titleVisibility: .visible
@@ -324,7 +342,7 @@ struct CharacterProfileView: View {
                     }
                     .padding(.bottom, 10)
 
-                    ForEach([1, 2, 3], id: \.self) { tier in
+                    ForEach([1, 2, 3, 4], id: \.self) { tier in
                         if let node = tree.first(where: { $0.branch == branch && $0.tier == tier }) {
                             SkillNodeTile(
                                 node: node,
@@ -332,11 +350,11 @@ struct CharacterProfileView: View {
                                 isAvailable:  isSkillAvailable(node),
                                 hasPoints:    hero.skillPoints >= node.cost,
                                 branchColor:  SkillDatabase.branchColor(branch),
-                                previewCard:  SkillDatabase.card(for: node.id),
-                                onUnlock:     { engine.unlockSkill(node.id) }
+                                onUnlock:     { engine.unlockSkill(node.id) },
+                                onTap:        { selectedSkillNode = node }
                             )
                         }
-                        if tier < 3 {
+                        if tier < 4 {
                             skillConnector(branch: branch, fromTier: tier, tree: tree)
                         }
                     }
@@ -471,7 +489,8 @@ struct CharacterProfileView: View {
                     }
                     VStack(spacing: 4) {
                         ForEach(sortedCol) { card in
-                            deckCardRow(card: card, inDeck: false, canToggle: canAdd) {
+                            let isOffClass = card.heroClass != nil && card.heroClass != hero.heroClass
+                            deckCardRow(card: card, inDeck: false, canToggle: canAdd && !isOffClass, isOffClass: isOffClass) {
                                 engine.addCardToDeck(card)
                             }
                         }
@@ -525,7 +544,7 @@ struct CharacterProfileView: View {
         }
     }
 
-    private func deckCardRow(card: Card, inDeck: Bool, canToggle: Bool, action: @escaping () -> Void) -> some View {
+    private func deckCardRow(card: Card, inDeck: Bool, canToggle: Bool, isOffClass: Bool = false, action: @escaping () -> Void) -> some View {
         HStack(spacing: 10) {
             // Cost badge
             ZStack {
@@ -539,25 +558,42 @@ struct CharacterProfileView: View {
             Text(card.effect.damageType.icon)
                 .font(.system(size: 16))
 
-            // Name + description
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 5) {
-                    Text(card.name)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(card.rarity == .common ? .white : card.rarity.color)
-                    if card.rarity != .common {
-                        Text(card.rarity.rawValue.uppercased())
-                            .font(.system(size: 6, weight: .black)).tracking(1.5)
-                            .foregroundStyle(card.rarity.color.opacity(0.8))
+            // Name + description (tap to expand full details)
+            Button { selectedCardForDetail = card } label: {
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 5) {
+                        Text(card.name)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(card.rarity == .common ? .white : card.rarity.color)
+                        if card.rarity != .common {
+                            Text(card.rarity.rawValue.uppercased())
+                                .font(.system(size: 6, weight: .black)).tracking(1.5)
+                                .foregroundStyle(card.rarity.color.opacity(0.8))
+                                .padding(.horizontal, 3).padding(.vertical, 1)
+                                .background(card.rarity.color.opacity(0.12)).clipShape(Capsule())
+                        }
+                        if isOffClass, let cc = card.heroClass {
+                            HStack(spacing: 2) {
+                                Image(systemName: "lock.fill").font(.system(size: 6))
+                                Text(cc.rawValue.uppercased())
+                                    .font(.system(size: 6, weight: .black)).tracking(1)
+                            }
+                            .foregroundStyle(.orange.opacity(0.8))
                             .padding(.horizontal, 3).padding(.vertical, 1)
-                            .background(card.rarity.color.opacity(0.12)).clipShape(Capsule())
+                            .background(Color.orange.opacity(0.12)).clipShape(Capsule())
+                        }
+                    }
+                    Text(card.description)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.gray.opacity(0.5))
+                        .lineLimit(2)
+                    if card.description.count > 40 {
+                        Text("tap to read more")
+                            .font(.system(size: 7)).foregroundStyle(accent.opacity(0.5))
                     }
                 }
-                Text(card.description)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.gray.opacity(0.5))
-                    .lineLimit(1)
             }
+            .buttonStyle(.plain)
 
             Spacer()
 
@@ -569,6 +605,10 @@ struct CharacterProfileView: View {
                         .foregroundStyle(inDeck ? .red.opacity(0.7) : .green.opacity(0.8))
                 }
                 .buttonStyle(.plain)
+            } else if isOffClass {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.orange.opacity(0.35))
             } else {
                 Image(systemName: inDeck ? "minus.circle" : "plus.circle")
                     .font(.system(size: 22))
@@ -738,7 +778,7 @@ struct CharacterProfileView: View {
                 }
                 if let fl = card.flavorText {
                     Text(fl).font(.system(size: 10)).foregroundStyle(.gray.opacity(0.55))
-                        .italic().lineLimit(1)
+                        .italic()
                 }
             }
             Spacer()
@@ -828,6 +868,119 @@ struct CharacterProfileView: View {
             Text(bonus.description.components(separatedBy: "\n").joined(separator: "  ·  "))
                 .font(.system(size: 11)).foregroundStyle(.green.opacity(0.8))
         }
+    }
+}
+
+// MARK: - Card Detail Sheet
+
+struct CardDetailSheet: View {
+    let card: Card
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.07, green: 0.04, blue: 0.14).ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    // Header
+                    HStack(alignment: .top, spacing: 12) {
+                        ZStack {
+                            Circle().fill(card.rarity.color.opacity(0.18)).frame(width: 44, height: 44)
+                            Text(card.effect.damageType.icon).font(.system(size: 22))
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(card.name)
+                                .font(.system(size: 20, weight: .black))
+                                .foregroundStyle(card.rarity == .common ? .white : card.rarity.color)
+                            HStack(spacing: 6) {
+                                // Cost
+                                HStack(spacing: 3) {
+                                    Image(systemName: "bolt.fill").font(.system(size: 9))
+                                    Text("\(card.cost) Energy")
+                                }
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.yellow.opacity(0.8))
+                                // Rarity
+                                if card.rarity != .common {
+                                    Text(card.rarity.rawValue.uppercased())
+                                        .font(.system(size: 8, weight: .black)).tracking(1.5)
+                                        .foregroundStyle(card.rarity.color.opacity(0.9))
+                                        .padding(.horizontal, 5).padding(.vertical, 2)
+                                        .background(card.rarity.color.opacity(0.15)).clipShape(Capsule())
+                                }
+                                // Type
+                                Text(card.type.rawValue.uppercased())
+                                    .font(.system(size: 8, weight: .black)).tracking(1)
+                                    .foregroundStyle(.white.opacity(0.4))
+                            }
+                        }
+                        Spacer()
+                    }
+
+                    Divider().background(.white.opacity(0.08))
+
+                    // Description
+                    Text(card.description)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineSpacing(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Modifiers
+                    if !card.modifiers.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(card.modifiers, id: \.label) { mod in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("·").foregroundStyle(card.rarity.color)
+                                    Text(mod.label).font(.system(size: 13))
+                                        .foregroundStyle(.white.opacity(0.75))
+                                }
+                            }
+                        }
+                    }
+
+                    // Stat bonus
+                    if let bonus = card.statBonus, !bonus.description.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("PASSIVE BONUS")
+                                .font(.system(size: 9, weight: .black)).tracking(1.5)
+                                .foregroundStyle(.white.opacity(0.3))
+                            ForEach(bonus.description.components(separatedBy: "\n"), id: \.self) { line in
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 10)).foregroundStyle(.green.opacity(0.7))
+                                    Text(line).font(.system(size: 13))
+                                        .foregroundStyle(.white.opacity(0.75))
+                                }
+                            }
+                        }
+                    }
+
+                    // Requirements
+                    if let reqs = card.requirements, !reqs.isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "lock.fill").font(.system(size: 10))
+                                .foregroundStyle(.orange.opacity(0.7))
+                            Text("Requires \(reqs.description)")
+                                .font(.system(size: 12)).foregroundStyle(.orange.opacity(0.8))
+                        }
+                    }
+
+                    // Flavor text
+                    if let fl = card.flavorText {
+                        Divider().background(.white.opacity(0.06))
+                        Text(fl)
+                            .font(.system(size: 13)).italic()
+                            .foregroundStyle(.gray.opacity(0.55))
+                            .lineSpacing(3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(24)
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 

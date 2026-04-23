@@ -75,6 +75,11 @@ struct Enemy: Identifiable, Codable {
     var burnStacks: Int = 0      // fire DoT: ticks each turn, decrements by 1
     var weakStacks: Int = 0
     var vulnerableStacks: Int = 0
+    var bleedStacks: Int = 0     // physical DoT: ticks when hero hits this enemy
+    var chillStacks: Int = 0     // ice buildup: at freezeThreshold → frozen
+    var frozenTurnsLeft: Int = 0 // >0 means enemy skips their next attack(s)
+
+    var isFrozen: Bool { frozenTurnsLeft > 0 }
     let actions: [EnemyIntent]
     var actionIndex: Int = 0
 
@@ -155,6 +160,7 @@ struct Enemy: Identifiable, Codable {
         if burnStacks > 0       { currentHp -= burnStacks;   burnStacks -= 1 }
         if weakStacks > 0       { weakStacks -= 1 }
         if vulnerableStacks > 0 { vulnerableStacks -= 1 }
+        if frozenTurnsLeft > 0  { frozenTurnsLeft -= 1 }
         drawBlockHand()
     }
 
@@ -163,6 +169,7 @@ struct Enemy: Identifiable, Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, icon, maxHp, currentHp, block, poisonStacks, burnStacks, weakStacks
         case vulnerableStacks, actions, actionIndex, blockHand, blockHandSize, blockCardValue
+        case bleedStacks, chillStacks, frozenTurnsLeft
     }
 
     init(from decoder: Decoder) throws {
@@ -182,5 +189,8 @@ struct Enemy: Identifiable, Codable {
         blockHand        = try c.decodeIfPresent([EnemyCard].self, forKey: .blockHand) ?? []
         blockHandSize    = try c.decodeIfPresent(Int.self,   forKey: .blockHandSize) ?? 2
         blockCardValue   = try c.decodeIfPresent(Int.self,   forKey: .blockCardValue) ?? 3
+        bleedStacks      = try c.decodeIfPresent(Int.self,   forKey: .bleedStacks) ?? 0
+        chillStacks      = try c.decodeIfPresent(Int.self,   forKey: .chillStacks) ?? 0
+        frozenTurnsLeft  = try c.decodeIfPresent(Int.self,   forKey: .frozenTurnsLeft) ?? 0
     }
 }

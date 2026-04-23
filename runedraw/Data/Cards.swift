@@ -1,4 +1,3 @@
-// swiftlint:disable line_length
 import Foundation
 
 struct CardDatabase {
@@ -39,7 +38,6 @@ struct CardDatabase {
 
     // MARK: - Barbarian card pool
 
-    // swiftlint:disable function_body_length
     private static func cardPool(for heroClass: HeroClass) -> [Card] {
         switch heroClass {
         case .barbarian: return barbarianPool()
@@ -78,25 +76,27 @@ struct CardDatabase {
     private static func roguePool() -> [Card] {
         [
             // Common
-            card("Quick Stab",    "Deal 5 physical damage.",                            cost: 0, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 5, damageType: .physical),                                                   def: 3),
-            card("Veil",          "Gain 6 block.",                                      cost: 1, rarity: .common, type: .skill,  class: .rogue, effect: CardEffect(block: 6),                                                                           def: 6),
-            card("Expose",        "Deal 6 damage. Apply 3 vulnerable.",                 cost: 1, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 6, damageType: .physical, vulnerableStacks: 3),                              def: 3),
-            card("Fan of Knives", "Deal 3 damage to ALL enemies.",                      cost: 1, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 3, damageType: .physical, damageAllEnemies: true),                           def: 2),
-            card("Envenom",       "Apply 5 poison.",                                    cost: 1, rarity: .common, type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 5),                                                                    def: 3),
-            card("Crippling Blow","Deal 6 damage. Apply 3 weak.",                       cost: 2, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 6, damageType: .physical, weakStacks: 3),                                    def: 3),
+            card("Quick Stab",    "Deal 5 physical damage.",                              cost: 0, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 5, damageType: .physical),                                                     def: 3),
+            card("Veil",          "Gain 6 block.",                                        cost: 1, rarity: .common, type: .skill,  class: .rogue, effect: CardEffect(block: 6),                                                                             def: 6),
+            card("Expose",        "Deal 6 damage. Apply 3 vulnerable.",                   cost: 1, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 6, damageType: .physical, vulnerableStacks: 3),                                def: 3),
+            card("Fan of Knives", "Deal 3 damage to ALL enemies.",                        cost: 1, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 3, damageType: .physical, damageAllEnemies: true),                             def: 2),
+            card("Envenom",       "Apply 5 poison.",                                      cost: 1, rarity: .common, type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 5),                                                                      def: 3),
+            card("Serrated Blade","Deal 6 physical damage. Apply 5 Bleed.",               cost: 1, rarity: .common, type: .attack, class: .rogue, effect: CardEffect(damage: 6, damageType: .physical, applyBleed: 5),                                      def: 3),
             // Magic
-            card("Finisher",      "Deal 5 damage. Combo: deal 10 more.",                cost: 2, rarity: .magic,  type: .attack, class: .rogue, effect: CardEffect(damage: 5, damageType: .physical, comboBonus: 10),                                   def: 3),
-            card("Blade Dance",   "Deal 4 damage twice. Combo: +3 per hit.",            cost: 2, rarity: .magic,  type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, times: 2, comboBonus: 6),                          def: 3),
-            card("Smoke Bomb",    "Gain 8 block. Apply 2 weak.",                        cost: 2, rarity: .magic,  type: .skill,  class: .rogue, effect: CardEffect(block: 8, weakStacks: 2),                                                           def: 4),
-            card("Adder's Kiss",  "Apply 8 poison.",                                    cost: 1, rarity: .magic,  type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 8),                                                                    def: 2),
+            card("Crippling Blow","Deal 6 damage. Apply 3 weak.",                         cost: 2, rarity: .magic,  type: .attack, class: .rogue, effect: CardEffect(damage: 6, damageType: .physical, weakStacks: 3),                                      def: 3),
+            card("Finisher",      "Deal 5 damage. Combo: deal 10 more.",                  cost: 2, rarity: .magic,  type: .attack, class: .rogue, effect: CardEffect(damage: 5, damageType: .physical, comboBonus: 10),                                     def: 3),
+            card("Blade Dance",   "Deal 4 damage twice. Combo: +3 per hit.",              cost: 2, rarity: .magic,  type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, times: 2, comboBonus: 6),                            def: 3),
+            card("Smoke Bomb",    "Gain 8 block. Apply 2 weak.",                          cost: 2, rarity: .magic,  type: .skill,  class: .rogue, effect: CardEffect(block: 8, weakStacks: 2),                                                             def: 4),
+            card("Adder's Kiss",  "Apply 8 poison.",                                      cost: 1, rarity: .magic,  type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 8),                                                                      def: 2),
+            card("Hemorrhage",    "Deal 4 physical damage. Apply 8 Bleed. Draw 1.",       cost: 2, rarity: .magic,  type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, draw: 1, applyBleed: 8),                             def: 3),
             // Rare
-            card("Death Blow",    "Deal 8 damage. Combo: +12 damage. Apply 3 poison.",  cost: 2, rarity: .rare,   type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical, poisonStacks: 3, comboBonus: 12),                  def: 3),
-            card("Marked for Death","Apply 5 vulnerable. Apply 5 poison.",              cost: 1, rarity: .rare,   type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 5, vulnerableStacks: 5),                                               def: 3),
-            card("Predator",      "Deal 4 damage to all. Apply 3 poison.",              cost: 3, rarity: .rare,   type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, poisonStacks: 3, damageAllEnemies: true),           def: 2),
-            card("Evasion",       "Gain 12 block. Draw 1.",                             cost: 2, rarity: .rare,   type: .skill,  class: .rogue, effect: CardEffect(block: 12, draw: 1),                                                                 def: 5),
+            card("Death Blow",    "Deal 8 damage. Combo: +12. Apply 3 poison.",           cost: 2, rarity: .rare,   type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical, poisonStacks: 3, comboBonus: 12),                    def: 3),
+            card("Marked for Death","Apply 5 vulnerable. Apply 5 poison.",                cost: 1, rarity: .rare,   type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 5, vulnerableStacks: 5),                                                 def: 3),
+            card("Open Wounds",   "Apply 6 Bleed to ALL enemies.",                        cost: 2, rarity: .rare,   type: .skill,  class: .rogue, effect: CardEffect(damageAllEnemies: true, applyBleed: 6),                                                def: 2),
+            card("Predator",      "Deal 4 damage to all. Apply 3 poison.",                cost: 3, rarity: .rare,   type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, poisonStacks: 3, damageAllEnemies: true),             def: 2),
             // Unique
-            card("Assassinate",   "Deal 15 damage. Combo: +10. Apply 8 poison.",        cost: 3, rarity: .unique, type: .attack, class: .rogue, effect: CardEffect(damage: 15, damageType: .physical, poisonStacks: 8, comboBonus: 10),                 def: 3),
-            card("Thousand Cuts", "Deal 3 physical damage four times.",                 cost: 3, rarity: .unique, type: .attack, class: .rogue, effect: CardEffect(damage: 3, damageType: .physical, times: 4),                                         def: 2),
+            card("Assassinate",   "Deal 15 damage. Combo: +10. Apply 8 poison.",          cost: 3, rarity: .unique, type: .attack, class: .rogue, effect: CardEffect(damage: 15, damageType: .physical, poisonStacks: 8, comboBonus: 10),                   def: 3),
+            card("Thousand Cuts", "Deal 3 physical damage four times.",                   cost: 3, rarity: .unique, type: .attack, class: .rogue, effect: CardEffect(damage: 3, damageType: .physical, times: 4),                                           def: 2),
         ]
     }
 
@@ -105,28 +105,27 @@ struct CardDatabase {
     private static func sorceressPool() -> [Card] {
         [
             // Common
-            card("Frost Bolt",    "Deal 7 ice damage.",                              cost: 1, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 7, damageType: .ice),                                                         def: 3),
-            card("Static Shock",  "Deal 5 arcane damage.",                           cost: 1, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .arcane),                                                      def: 3),
+            card("Frost Bolt",    "Deal 7 ice damage. Apply 2 Chill.",              cost: 1, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 7, damageType: .ice, applyChillStacks: 2),                                    def: 3),
+            card("Static Shock",  "Deal 5 arcane. ⚡Arcane: deal 8 more.",          cost: 1, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .arcane, arcaneBonus: 8),                                      def: 3),
             card("Scorch",        "Deal 5 fire damage. Apply 3 burn.",               cost: 1, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .fire, applyBurn: 3),                                          def: 2),
             card("Ice Armor",     "Gain 10 block.",                                  cost: 2, rarity: .common, type: .skill,  class: .sorceress, effect: CardEffect(block: 10),                                                                           def: 7),
-            card("Arcane Blast",  "Deal 4 arcane damage twice.",                     cost: 2, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 4, damageType: .arcane, times: 2),                                           def: 3),
-            card("Chill Touch",   "Deal 5 ice damage. Apply 2 weak.",                cost: 1, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .ice, weakStacks: 2),                                         def: 3),
+            card("Arcane Blast",  "Deal 4 arcane twice. ⚡Arcane: deal 8 more.",    cost: 2, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 4, damageType: .arcane, times: 2, arcaneBonus: 8),                            def: 3),
+            card("Chill Touch",   "Deal 5 ice damage. Apply 3 Chill. Apply 2 weak.", cost: 1, rarity: .common, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .ice, weakStacks: 2, applyChillStacks: 3),                    def: 3),
             // Magic
-            card("Chain Lightning","Deal 5 arcane to ALL enemies.",                  cost: 2, rarity: .magic,  type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .arcane, damageAllEnemies: true),                             def: 2),
+            card("Chain Lightning","Deal 5 arcane to ALL. ⚡Arcane: +5 to all.",    cost: 2, rarity: .magic,  type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .arcane, damageAllEnemies: true, arcaneBonus: 5),              def: 2),
             card("Amplify",       "Your next attack deals double damage.",            cost: 1, rarity: .magic,  type: .skill,  class: .sorceress, effect: CardEffect(amplifyNext: true),                                                                  def: 2),
             card("Ignite",        "Apply 5 burn to ALL enemies.",                    cost: 2, rarity: .magic,  type: .skill,  class: .sorceress, effect: CardEffect(applyBurn: 5, applyBurnAll: true),                                                   def: 2),
             card("Mana Burst",    "Draw 3. Gain 1 energy.",                          cost: 2, rarity: .magic,  type: .skill,  class: .sorceress, effect: CardEffect(draw: 3, energyGain: 1),                                                             def: 2),
             // Rare
-            card("Blizzard",      "Deal 8 ice damage to ALL. Apply 2 vulnerable.",   cost: 3, rarity: .rare,   type: .attack, class: .sorceress, effect: CardEffect(damage: 8, damageType: .ice, vulnerableStacks: 2, damageAllEnemies: true),            def: 2),
+            card("Blizzard",      "Deal 8 ice to ALL. Apply 3 Chill to ALL.",       cost: 3, rarity: .rare,   type: .attack, class: .sorceress, effect: CardEffect(damage: 8, damageType: .ice, damageAllEnemies: true, applyChillStacks: 3),            def: 2),
             card("Pyroclasm",     "Deal 20 fire damage. Exhausts.",                  cost: 2, rarity: .rare,   type: .attack, class: .sorceress, effect: CardEffect(damage: 20, damageType: .fire, exhausts: true),                                       def: 2),
-            card("Frost Nova",    "Apply 4 vulnerable to ALL enemies.",              cost: 2, rarity: .rare,   type: .skill,  class: .sorceress, effect: CardEffect(vulnerableStacks: 4, damageAllEnemies: true),                                         def: 3),
-            card("Arcane Torrent","Deal 5 arcane damage three times.",               cost: 3, rarity: .rare,   type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .arcane, times: 3),                                           def: 2),
+            card("Frost Nova",    "Apply 4 Chill to ALL enemies.",                  cost: 2, rarity: .rare,   type: .skill,  class: .sorceress, effect: CardEffect(damageAllEnemies: true, applyChillStacks: 4),                                         def: 3),
+            card("Arcane Torrent","Deal 5 arcane 3×. ⚡Arcane: deal 12 more.",      cost: 3, rarity: .rare,   type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .arcane, times: 3, arcaneBonus: 12),                           def: 2),
             // Unique
-            card("Inferno",       "Deal 12 fire damage to ALL. Apply 4 burn.",       cost: 4, rarity: .unique, type: .attack, class: .sorceress, effect: CardEffect(damage: 12, damageType: .fire, damageAllEnemies: true, applyBurn: 4, applyBurnAll: true), def: 2),
-            card("Frozen Time",   "Deal 10 ice damage. Draw 2.",                     cost: 3, rarity: .unique, type: .attack, class: .sorceress, effect: CardEffect(damage: 10, damageType: .ice, draw: 2),                                              def: 3),
+            card("Inferno",       "Deal 12 fire to ALL. Apply 4 burn to ALL.",      cost: 4, rarity: .unique, type: .attack, class: .sorceress, effect: CardEffect(damage: 12, damageType: .fire, damageAllEnemies: true, applyBurn: 4, applyBurnAll: true), def: 2),
+            card("Frozen Time",   "Deal 10 ice. Apply 5 Chill. Draw 2.",            cost: 3, rarity: .unique, type: .attack, class: .sorceress, effect: CardEffect(damage: 10, damageType: .ice, draw: 2, applyChillStacks: 5),                          def: 3),
         ]
     }
-    // swiftlint:enable function_body_length
 
     // MARK: - Neutral card pool (any class can find these)
 
@@ -191,7 +190,6 @@ struct CardDatabase {
 
     // MARK: - Helpers
 
-    // swiftlint:disable function_parameter_count
     private static func card(
         _ name: String, _ desc: String,
         cost: Int, rarity: CardRarity = .common, type: CardType, class hc: HeroClass?, effect: CardEffect, def defenseValue: Int = 0
@@ -199,7 +197,6 @@ struct CardDatabase {
         Card(name: name, description: desc, cost: cost, type: type, rarity: rarity,
              heroClass: hc, effect: effect, defenseValue: defenseValue)
     }
-    // swiftlint:enable function_parameter_count
 
     // Assign a fresh UUID to every card so duplicates are distinct in the deck
     private static func unique(_ cards: [Card]) -> [Card] {
