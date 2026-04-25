@@ -43,6 +43,7 @@ class GameEngine {
     var hasEnduredThisCombat: Bool = false     // Barbarian: Endure used this combat
     var pendingFreeCard: Bool = false          // Barbarian: Bloodlust — next card costs 0
     var pendingAssassinateReady: Bool = false  // Rogue: Assassinate — next attack costs 0
+    var deckRecycleCount: Int = 0              // how many times the deck has been reshuffled this combat
 
     // Combat reward summary — read by LootPickupView for animations
     var lastCombatExpGained: Int = 0
@@ -285,6 +286,7 @@ class GameEngine {
         hasEnduredThisCombat    = false
         pendingFreeCard         = false
         pendingAssassinateReady = false
+        deckRecycleCount        = 0
         // Each enemy draws their opening block hand
         for idx in currentEnemies.indices { currentEnemies[idx].drawBlockHand() }
         log("⚔️ Combat begins!")
@@ -977,13 +979,38 @@ class GameEngine {
                 guard !h.discardPile.isEmpty else { break }
                 h.deck        = h.discardPile.shuffled()
                 h.discardPile = []
-                log("Reshuffled discard pile.")
+                deckRecycleCount += 1
+                log("♻️ Deck exhausted — reshuffled discard pile.")
+                applyRecyclePenalty(to: &h)
             }
             if !h.deck.isEmpty {
                 h.hand.append(h.deck.removeFirst())
             }
         }
         hero = h
+    }
+
+    /// Class-specific penalty for exhausting the deck.
+    /// Add a new case here when introducing a new class.
+    private func applyRecyclePenalty(to h: inout Hero) {
+        switch h.heroClass {
+        case .barbarian:
+            // Barbarian burns through rage when gassed out — lose all combat strength.
+            if h.combatStrength > 0 {
+                log("😤 Exhausted! Lost \(h.combatStrength) Strength (×\(deckRecycleCount) recycle).")
+                h.combatStrength = 0
+            } else {
+                log("😤 Exhausted! (No Strength to lose.)")
+            }
+        case .sorceress:
+            // Rushing the spell rotation causes arcane backlash — escalates per recycle.
+            let dmg = 2 * deckRecycleCount
+            h.currentHp = max(1, h.currentHp - dmg)
+            log("🌀 Arcane backlash! Took \(dmg) damage (×\(deckRecycleCount) recycle).")
+        case .rogue:
+            // Rogues cycle fast by design — no penalty.
+            log("💨 Fleet-footed — no recycle penalty.")
+        }
     }
 
     // MARK: - Combat End

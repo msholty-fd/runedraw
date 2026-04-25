@@ -88,6 +88,28 @@ enum HeroClass: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Short mechanic summary shown on the class select screen and the character profile.
+    /// Add a case here for each new class introduced.
+    var playstyle: String {
+        switch self {
+        case .barbarian:
+            return "When your deck runs out, all Strength built up this combat is lost."
+        case .rogue:
+            return "Cycling through your full deck carries no penalty."
+        case .sorceress:
+            return "Each time your deck runs out, you take arcane backlash damage — and it increases with every recycle."
+        }
+    }
+
+    /// One-line recycle penalty description shown in the profile.
+    var recyclePenaltyLabel: String {
+        switch self {
+        case .barbarian: return "Deck exhaustion: lose all Strength"
+        case .rogue:     return "Deck exhaustion: no penalty"
+        case .sorceress: return "Deck exhaustion: arcane backlash (escalating)"
+        }
+    }
+
     var baseMaxHp: Int {
         switch self {
         case .barbarian: return 80

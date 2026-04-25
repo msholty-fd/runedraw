@@ -192,6 +192,8 @@ struct CharacterProfileView: View {
 
                 expBar.padding(.top, 10)
 
+                classIdentityBlock.padding(.top, 14)
+
                 profileDivider
 
                 // Attributes header + points badge
@@ -260,6 +262,40 @@ struct CharacterProfileView: View {
             Text("\(hero.experience) / \(hero.expToNextLevel) XP")
                 .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.40))
         }
+    }
+
+    private var classIdentityBlock: some View {
+        VStack(spacing: 10) {
+            // Lore blurb
+            Text(hero.heroClass.lore)
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.75))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 28)
+
+            // Playstyle summary
+            Text(hero.heroClass.playstyle)
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.55))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 28)
+
+            // Recycle penalty pill
+            HStack(spacing: 6) {
+                Text("♻️")
+                    .font(.system(size: 11))
+                Text(hero.heroClass.recyclePenaltyLabel)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(accent)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 5)
+            .background(accent.opacity(0.10))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(accent.opacity(0.30), lineWidth: 1))
+        }
+        .padding(.horizontal, 8)
     }
 
     @ViewBuilder

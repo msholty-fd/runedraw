@@ -100,6 +100,23 @@ struct ClassCard: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
 
+                    Text(heroClass.playstyle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.50))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 4) {
+                        Text("♻️").font(.system(size: 10))
+                        Text(heroClass.recyclePenaltyLabel)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(heroClass.themeColor)
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(heroClass.themeColor.opacity(0.10))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(heroClass.themeColor.opacity(0.25), lineWidth: 1))
+
                     Text(heroClass.statsLabel)
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(heroClass.themeColor)
