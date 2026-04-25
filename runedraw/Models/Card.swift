@@ -259,6 +259,9 @@ struct Card: Identifiable, Codable {
     /// Tapping a card during the block phase commits it — card discards, damage reduced.
     var defenseValue: Int
     var activatedCost: Int = 0
+    /// FAB-style pitch value: how many resources this card generates when pitched to fund
+    /// another card's cost. Weak/utility cards = 3 (great fodder), strong/finisher cards = 1.
+    var pitchValue: Int
 
     var isEquipment: Bool { equipmentSlot != nil }
 
@@ -280,7 +283,8 @@ struct Card: Identifiable, Codable {
         rarity: CardRarity = .common,
         heroClass: HeroClass? = nil,
         effect: CardEffect,
-        defenseValue: Int = 0
+        defenseValue: Int = 0,
+        pitchValue: Int = 2
     ) {
         self.id = id
         self.name = name
@@ -291,6 +295,7 @@ struct Card: Identifiable, Codable {
         self.heroClass = heroClass
         self.effect = effect
         self.defenseValue = defenseValue
+        self.pitchValue = pitchValue
         self.activatedCost = 0
         self.equipmentSlot = nil
         self.statBonus = nil
@@ -326,6 +331,7 @@ struct Card: Identifiable, Codable {
         self.heroClass = nil
         self.effect = effect
         self.defenseValue = 0           // equipment doesn't block in combat
+        self.pitchValue = 2             // equipment can be pitched if added to deck
         self.activatedCost = activatedCost
         self.equipmentSlot = slot
         self.statBonus = statBonus
@@ -341,7 +347,7 @@ struct Card: Identifiable, Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, description, cost, type, rarity, heroClass, effect
         case equipmentSlot, statBonus, size, modifiers, isUnique, flavorText
-        case requirements, defenseValue, activatedCost
+        case requirements, defenseValue, activatedCost, pitchValue
     }
 
     init(from decoder: Decoder) throws {
@@ -363,5 +369,6 @@ struct Card: Identifiable, Codable {
         requirements  = try c.decodeIfPresent(StatRequirements.self, forKey: .requirements)
         defenseValue  = try c.decodeIfPresent(Int.self,            forKey: .defenseValue) ?? 0
         activatedCost = try c.decodeIfPresent(Int.self,            forKey: .activatedCost) ?? 0
+        pitchValue    = try c.decodeIfPresent(Int.self,            forKey: .pitchValue) ?? 2
     }
 }

@@ -1,3 +1,4 @@
+// swiftlint:disable type_body_length function_body_length line_length cyclomatic_complexity file_length
 import Foundation
 import Observation
 
@@ -37,6 +38,21 @@ class GameEngine {
     var lastPlayedCardType: CardType? = nil   // combo mechanic: tracks type of last card played
     var amplifyActive: Bool = false            // Sorceress: next attack card deals 2×
     var usedEquipmentActivations: Set<EquipmentSlot> = []
+
+    // Pitch state — FAB-style: pitch hand cards to fund the cost of another card
+    /// The card currently staged for play (still in hand; awaiting pitch to cover its cost).
+    var stagedCardID: UUID? = nil
+    /// Cards being pitched to fund the staged card. Keys removed from hand when play is confirmed.
+    var pitchedForStagedIDs: [UUID] = []
+    /// Sum of pitchValue for all cards currently in pitchedForStagedIDs.
+    var pitchResourceAvailable: Int {
+        guard let h = hero else { return 0 }
+        return pitchedForStagedIDs.compactMap { id in
+            h.hand.first { $0.id == id }?.pitchValue
+        }.reduce(0, +)
+    }
+    var stagedCard: Card? { hero?.hand.first { $0.id == stagedCardID } }
+    var pitchCostMet: Bool { pitchResourceAvailable >= (stagedCard?.cost ?? 0) }
 
     // Per-combat keyword state (reset in beginCombat)
     var combatEvasionCharges: Int = 0          // Rogue: remaining dodge charges this combat
@@ -290,6 +306,8 @@ class GameEngine {
         pendingFreeCard         = false
         pendingAssassinateReady = false
         deckRecycleCount        = 0
+        stagedCardID            = nil
+        pitchedForStagedIDs     = []
         // Each enemy draws their opening block hand
         for idx in currentEnemies.indices { currentEnemies[idx].drawBlockHand() }
         log("⚔️ Combat begins!")
@@ -300,13 +318,111 @@ class GameEngine {
 
     // MARK: - Playing Cards
 
+    /// A card can be played if either:
+    /// - It costs 0 (free), OR
+    /// - It is the currently staged card and pitch cost is already met, OR
+    /// - It is not staged yet and the hand has enough pitch headroom after subtracting itself.
+    /// This check is used by the UI to grey out unplayable cards; actual enforcement is in stageCard/confirmPlay.
     func canPlay(_ card: Card) -> Bool {
-        (hero?.currentEnergy ?? 0) >= card.cost
+        guard !isBlockPhase else { return false }
+        if pendingFreeCard || (pendingAssassinateReady && card.type == .attack) { return true }
+        if card.cost == 0 { return true }
+        // If this card is staged, it's playable (cost gating happens at confirmPlay)
+        if card.id == stagedCardID { return true }
+        // Otherwise, check whether there are enough other cards in hand to cover its cost
+        let otherHandPitch = hero?.hand
+            .filter { $0.id != card.id }
+            .map(\.pitchValue)
+            .reduce(0, +) ?? 0
+        return otherHandPitch >= card.cost
     }
 
-    func play(_ card: Card, targeting enemyIndex: Int = 0) {
+    // MARK: - Pitch / Stage
+
+    /// Primary hand-card tap handler. Routes to immediate play (cost 0) or staging (cost > 0).
+    func handleCardTap(_ card: Card, targeting enemyIndex: Int = 0) {
+        guard !isBlockPhase else { return }
+
+        // Tapping the staged card confirms the play if cost is met
+        if card.id == stagedCardID {
+            if pitchCostMet {
+                confirmStagedPlay(targeting: enemyIndex)
+            } else {
+                // Not enough pitch yet — cancel staging
+                cancelStage()
+            }
+            return
+        }
+
+        // If there's an active staged card, tap on other hand cards pitches them
+        if stagedCardID != nil {
+            togglePitch(card)
+            return
+        }
+
+        // No staged card — try to play directly (free cards) or stage
+        let isFree = pendingFreeCard || (pendingAssassinateReady && card.type == .attack)
+        if isFree || card.cost == 0 {
+            play(card, targeting: enemyIndex, pitching: [])
+        } else {
+            stageCard(card)
+        }
+    }
+
+    /// Stage a card: it waits for pitch cards to cover its cost.
+    func stageCard(_ card: Card) {
+        guard hero?.hand.contains(where: { $0.id == card.id }) == true else { return }
+        stagedCardID        = card.id
+        pitchedForStagedIDs = []
+    }
+
+    /// Toggle a hand card as pitched for the staged card.
+    func togglePitch(_ card: Card) {
+        guard let stagedID = stagedCardID, card.id != stagedID else { return }
+        guard hero?.hand.contains(where: { $0.id == card.id }) == true else { return }
+        if let idx = pitchedForStagedIDs.firstIndex(of: card.id) {
+            pitchedForStagedIDs.remove(at: idx)
+        } else {
+            pitchedForStagedIDs.append(card.id)
+        }
+    }
+
+    /// Confirm the staged play: move pitched cards to deck bottom, then play the staged card.
+    func confirmStagedPlay(targeting enemyIndex: Int = 0) {
+        guard let stagedID = stagedCardID,
+              var h = hero,
+              let staged = h.hand.first(where: { $0.id == stagedID }),
+              pitchCostMet else { return }
+
+        // Move pitched cards to the bottom of the deck (in the order they were selected)
+        let pitched = pitchedForStagedIDs.compactMap { id in h.hand.first { $0.id == id } }
+        for pitchedCard in pitched {
+            h.hand.removeAll { $0.id == pitchedCard.id }
+            h.deck.append(pitchedCard)   // bottom of deck
+        }
+        if !pitched.isEmpty {
+            let names = pitched.map(\.name).joined(separator: ", ")
+            log("🔄 Pitched \(names) to fuel \(staged.name).")
+        }
+        hero = h
+
+        // Clear pitch state before playing
+        stagedCardID        = nil
+        pitchedForStagedIDs = []
+
+        // Play the staged card (energy cost bypass — pitch already paid)
+        play(staged, targeting: enemyIndex, pitching: pitched)
+    }
+
+    /// Cancel staging without playing the card.
+    func cancelStage() {
+        stagedCardID        = nil
+        pitchedForStagedIDs = []
+    }
+
+    /// Internal play — called after pitch cost is resolved. `pitching` is informational only (already removed from hand).
+    func play(_ card: Card, targeting enemyIndex: Int = 0, pitching: [Card] = []) {
         guard var h = hero,
-              canPlay(card),
               let handIndex = h.hand.firstIndex(where: { $0.id == card.id }) else { return }
 
         // ── Bloodlust / Assassinate free-card check ──────────────────────
@@ -314,9 +430,8 @@ class GameEngine {
         if isFree {
             if pendingFreeCard         { pendingFreeCard = false;         log("🩸 Bloodlust: free card!") }
             if pendingAssassinateReady { pendingAssassinateReady = false; log("🎯 Assassinate: free attack!") }
-        } else {
-            h.currentEnergy -= card.cost
         }
+        // No energy deduction — cost is covered by pitch cards (already moved to deck bottom)
         h.hand.remove(at: handIndex)
         if !card.effect.exhausts {
             h.discardPile.append(card)
@@ -908,6 +1023,8 @@ class GameEngine {
         usedEquipmentActivations = []
         pendingFreeCard = false
         pendingAssassinateReady = false
+        stagedCardID = nil
+        pitchedForStagedIDs = []
         drawCards(hero?.cardDrawCount ?? 5)
         autoSave()
     }

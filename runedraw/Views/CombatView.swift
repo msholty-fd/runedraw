@@ -70,6 +70,14 @@ struct CombatView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
 
+                if engine.stagedCardID != nil {
+                    pitchStatusBar
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(Color(red: 0.12, green: 0.10, blue: 0.06).opacity(0.9))
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
                 handSection
                     .frame(height: 174)
 
@@ -296,26 +304,40 @@ struct CombatView: View {
                         }
                         .padding(.vertical, 6)
                     } else {
-                        let isRevealed = revealedCardIDs.contains(card.id)
-                        let canPlay    = engine.canPlay(card)
+                        let isRevealed  = revealedCardIDs.contains(card.id)
+                        let isStaged    = engine.stagedCardID == card.id
+                        let isPitched   = engine.pitchedForStagedIDs.contains(card.id)
+                        let canPlay     = engine.canPlay(card)
 
-                        CardView(card: card, isPlayable: canPlay) {
-                            guard canPlay else { return }
+                        CardView(card: card,
+                                 isPlayable: canPlay || isPitched,
+                                 isSelected: isStaged,
+                                 isPitched: isPitched) {
                             SoundManager.cardPlay()
-                            engine.play(card, targeting: 0)
-                            // Show impact animation immediately when a damage card is played.
-                            let fx = card.effect
-                            if fx.damage > 0 || fx.damageFromBlock {
-                                combatEffect = CombatEffectData(damageType: fx.damageType, targetIndex: 0)
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
-                                    combatEffect = nil
+                            engine.handleCardTap(card, targeting: 0)
+                            // Impact animation fires when a damage card actually plays.
+                            if isStaged && engine.pitchCostMet {
+                                let fx = card.effect
+                                if fx.damage > 0 || fx.damageFromBlock {
+                                    combatEffect = CombatEffectData(damageType: fx.damageType, targetIndex: 0)
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+                                        combatEffect = nil
+                                    }
+                                }
+                            } else if card.cost == 0 && engine.stagedCardID == nil {
+                                let fx = card.effect
+                                if fx.damage > 0 || fx.damageFromBlock {
+                                    combatEffect = CombatEffectData(damageType: fx.damageType, targetIndex: 0)
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+                                        combatEffect = nil
+                                    }
                                 }
                             }
                         }
                         .padding(.vertical, 6)
                         // Deal-in stagger: cards rise from below into place.
                         .offset(y: isRevealed ? 0 : 90)
-                        .opacity(isRevealed ? (canPlay ? 1.0 : 0.45) : 0.0)
+                        .opacity(isRevealed ? 1.0 : 0.0)
                         .animation(.spring(response: 0.40, dampingFraction: 0.74),
                                    value: isRevealed)
                         .transition(.asymmetric(
@@ -352,6 +374,45 @@ struct CombatView: View {
         Group {
             if engine.isBlockPhase {
                 blockPhaseControls
+            } else if engine.stagedCardID != nil {
+                // Staging mode: show Cancel and (if cost met) Confirm
+                HStack(spacing: 12) {
+                    Button {
+                        SoundManager.buttonTap()
+                        engine.cancelStage()
+                    } label: {
+                        Text("CANCEL")
+                            .font(.system(size: 13, weight: .bold))
+                            .tracking(2)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .frame(width: 100, height: 44)
+                            .background(Color.gray.opacity(0.25))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        SoundManager.cardPlay()
+                        engine.confirmStagedPlay(targeting: 0)
+                    } label: {
+                        Text(engine.pitchCostMet ? "PLAY ✓" : "NEED \(max(0, (engine.stagedCard?.cost ?? 0) - engine.pitchResourceAvailable)) MORE")
+                            .font(.system(size: 13, weight: .black))
+                            .tracking(2)
+                            .foregroundStyle(engine.pitchCostMet ? .black : .white.opacity(0.5))
+                            .frame(width: 140, height: 44)
+                            .background(engine.pitchCostMet
+                                ? LinearGradient(
+                                    colors: [Color(red: 1.0, green: 0.6, blue: 0.1),
+                                             Color(red: 0.7, green: 0.35, blue: 0.0)],
+                                    startPoint: .top, endPoint: .bottom)
+                                : LinearGradient(
+                                    colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
+                                    startPoint: .top, endPoint: .bottom))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!engine.pitchCostMet)
+                }
             } else {
                 Button {
                     SoundManager.buttonTap()
@@ -470,6 +531,58 @@ struct CombatView: View {
     // MARK: - Deck / Discard Status Bar
 
     /// Compact row showing draw pile count and a tappable discard count.
+    // MARK: - Pitch Status Bar
+
+    private var pitchStatusBar: some View {
+        let card    = engine.stagedCard
+        let cost    = card?.cost ?? 0
+        let pitched = engine.pitchResourceAvailable
+        let met     = engine.pitchCostMet
+
+        return HStack(spacing: 10) {
+            // Staged card name
+            HStack(spacing: 4) {
+                Text("▶").font(.system(size: 10)).foregroundStyle(Color.orange)
+                Text(card?.name ?? "")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            Spacer()
+
+            // Cost vs pitched resource bar
+            HStack(spacing: 6) {
+                Text("Cost \(cost)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.gray)
+
+                // Pip row
+                HStack(spacing: 3) {
+                    ForEach(0..<max(cost, 1), id: \.self) { i in
+                        Circle()
+                            .fill(i < pitched ? Color.teal : Color.gray.opacity(0.3))
+                            .frame(width: 9, height: 9)
+                    }
+                }
+
+                Text("\(pitched)/\(cost)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(met ? Color.teal : .white.opacity(0.6))
+            }
+
+            if met {
+                Text("READY")
+                    .font(.system(size: 10, weight: .black))
+                    .tracking(1)
+                    .foregroundStyle(Color.teal)
+            } else {
+                Text("tap cards to pitch →")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.gray.opacity(0.6))
+            }
+        }
+    }
+
     private var deckStatusBar: some View {
         HStack(spacing: 0) {
             // Draw pile
