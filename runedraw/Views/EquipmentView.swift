@@ -95,8 +95,8 @@ struct EquipmentView: View {
                             .tracking(1)
                     }
                     HStack(spacing: 10) {
-                        Label("\(hero.currentHp)/\(hero.maxHp)", systemImage: "heart.fill")
-                            .font(.system(size: 12, weight: .bold)).foregroundStyle(.red)
+                        Label("\(hero.totalCardPool) cards", systemImage: "rectangle.stack.fill")
+                            .font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
                         if hero.attackBonus  > 0 { Text("+\(hero.attackBonus) ATK").font(.system(size: 11)).foregroundStyle(.orange) }
                         if hero.defenseBonus > 0 { Text("+\(hero.defenseBonus) DEF").font(.system(size: 11)).foregroundStyle(.cyan) }
                         let nrgBonus = hero.maxEnergy - hero.heroClass.baseEnergy

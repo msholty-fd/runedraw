@@ -82,8 +82,8 @@ struct TownView: View {
                         .foregroundStyle(Color(red: 1.0, green: 0.75, blue: 0.2)).tracking(1)
                 }
                 HStack(spacing: 4) {
-                    Image(systemName: "heart.fill").font(.system(size: 10)).foregroundStyle(.red)
-                    Text("\(hero.currentHp)/\(hero.maxHp)").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                    Image(systemName: "rectangle.stack.fill").font(.system(size: 10)).foregroundStyle(.white)
+                    Text("\(hero.totalCardPool) cards").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                 }
             }
 

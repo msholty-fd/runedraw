@@ -41,8 +41,8 @@ struct DungeonMapView: View {
                                     .foregroundStyle(Color(red: 1.0, green: 0.75, blue: 0.2)).tracking(1)
                             }
                             HStack(spacing: 4) {
-                                Image(systemName: "heart.fill").font(.system(size: 10)).foregroundStyle(.red)
-                                Text("\(hero.currentHp)/\(hero.maxHp)")
+                                Image(systemName: "rectangle.stack.fill").font(.system(size: 10)).foregroundStyle(.white)
+                                Text("\(hero.totalCardPool)")
                                     .font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                             }
                         }
@@ -203,11 +203,11 @@ struct HeroStatusBar: View {
 
                 // HP bar
                 HStack(spacing: 6) {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.red)
+                    Image(systemName: "rectangle.stack.fill")
+                        .foregroundStyle(.white)
                         .font(.system(size: 11))
 
-                    Text("\(hero.currentHp)/\(hero.maxHp)")
+                    Text("\(hero.totalCardPool) cards")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.white)
 
@@ -216,8 +216,8 @@ struct HeroStatusBar: View {
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(Color.gray.opacity(0.25))
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(Color.red)
-                                .frame(width: geo.size.width * hpFraction)
+                                .fill(Color.white.opacity(0.7))
+                                .frame(width: geo.size.width * cardPoolFraction)
                         }
                     }
                     .frame(height: 5)
@@ -241,9 +241,10 @@ struct HeroStatusBar: View {
         }
     }
 
-    private var hpFraction: CGFloat {
-        guard hero.maxHp > 0 else { return 0 }
-        return CGFloat(hero.currentHp) / CGFloat(hero.maxHp)
+    private var cardPoolFraction: CGFloat {
+        let total = hero.totalCardPool + hero.exiledCards.count
+        guard total > 0 else { return 0 }
+        return CGFloat(hero.totalCardPool) / CGFloat(total)
     }
 }
 

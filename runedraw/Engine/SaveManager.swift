@@ -19,8 +19,8 @@ struct CharacterSummary {
     let heroClass: HeroClass
     let level: Int
     let areaName: String
-    let currentHp: Int
-    let maxHp: Int
+    let totalCardPool: Int
+    let exiledCardCount: Int
     let deckCount: Int
 }
 
@@ -90,8 +90,8 @@ struct SaveManager {
                 heroClass: h.heroClass,
                 level: h.level,
                 areaName: save.currentArea.name,
-                currentHp: h.currentHp,
-                maxHp: h.maxHp,
+                totalCardPool: h.totalCardPool,
+                exiledCardCount: h.exiledCards.count,
                 deckCount: deckCount
             )
         }

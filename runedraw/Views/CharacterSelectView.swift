@@ -107,19 +107,20 @@ private struct ExistingCharacterSlot: View {
                 }
                 Text(summary.areaName)
                     .font(.system(size: 11)).foregroundStyle(.gray.opacity(0.6))
-                // HP bar
+                // Card pool bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.06))
-                        let frac = min(1.0, Double(summary.currentHp) / Double(max(1, summary.maxHp)))
+                        let total = summary.totalCardPool + summary.exiledCardCount
+                        let frac = total > 0 ? min(1.0, Double(summary.totalCardPool) / Double(total)) : 1.0
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(LinearGradient(colors: [.red, .red.opacity(0.5)],
+                            .fill(LinearGradient(colors: [.white, .white.opacity(0.5)],
                                                  startPoint: .leading, endPoint: .trailing))
                             .frame(width: geo.size.width * frac)
                     }
                 }
                 .frame(height: 4)
-                Text("\(summary.currentHp)/\(summary.maxHp) HP  •  \(summary.deckCount) cards")
+                Text("\(summary.totalCardPool) cards  •  \(summary.exiledCardCount) exiled")
                     .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.4))
             }
 

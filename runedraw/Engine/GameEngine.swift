@@ -125,9 +125,9 @@ class GameEngine {
             screen = .combat
 
         case .rest:
-            let healed = (hero?.maxHp ?? 0) / 4
-            hero?.heal(healed)
-            log("🔥 Rested — recovered \(healed) HP.")
+            let healed = 3
+            hero?.restoreExiledCards(count: healed)
+            log("🔥 Rested — restored \(healed) card(s) from exile.")
             completeCurrentRoom()
             screen = .dungeonMap
             autoSave()
@@ -203,26 +203,28 @@ class GameEngine {
             lines.append("Nothing happens.")
 
         case .heal(let amt):
-            let before = h.currentHp
-            h.heal(amt)
-            let actual = h.currentHp - before
-            lines.append("Recovered \(actual) HP.")
+            let before = h.exiledCards.count
+            h.restoreExiledCards(count: amt)
+            let actual = before - h.exiledCards.count
+            lines.append("Restored \(actual) card(s) from exile.")
 
         case .healPercent(let pct):
-            let amt = max(1, Int(Double(h.maxHp) * pct))
-            let before = h.currentHp
-            h.heal(amt)
-            let actual = h.currentHp - before
-            lines.append("Recovered \(actual) HP.")
+            let amt = max(1, Int(Double(h.exiledCards.count) * pct))
+            let before = h.exiledCards.count
+            h.restoreExiledCards(count: amt)
+            let actual = before - h.exiledCards.count
+            lines.append("Restored \(actual) card(s) from exile.")
 
         case .damage(let amt):
-            h.takeDamage(amt)
-            lines.append("Took \(amt) damage.")
+            let cardsExiled = max(1, amt / 5)
+            h.exileCards(count: cardsExiled)
+            lines.append("Lost \(cardsExiled) card(s) to damage.")
 
         case .damagePercent(let pct):
-            let amt = max(1, Int(Double(h.maxHp) * pct))
-            h.takeDamage(amt)
-            lines.append("Took \(amt) damage.")
+            let rawAmt = max(1, Int(Double(h.totalCardPool) * pct))
+            let cardsExiled = max(1, rawAmt)
+            h.exileCards(count: cardsExiled)
+            lines.append("Lost \(cardsExiled) card(s) to damage.")
 
         case .gold(let amt):
             if amt >= 0 {
@@ -276,6 +278,7 @@ class GameEngine {
         h.block         = h.startingBlock
         h.currentEnergy = h.maxEnergy
         h.combatStrength = 0
+        // exiledCards persist between fights — permanent run damage
         hero = h
         combatLog = []
         playedCards = []
@@ -401,11 +404,11 @@ class GameEngine {
                 }
             }
 
-            // ── Lifelink: heal per physical hit ─────────────────────────
+            // ── Lifelink: restore exiled cards per physical hit ──────────
             if isPhysical && passives.lifeStealPerHit > 0 {
-                let healed = passives.lifeStealPerHit * fx.times
-                hero?.heal(healed)
-                log("❤️ Lifelink: +\(healed) HP.")
+                let restored = passives.lifeStealPerHit * fx.times
+                hero?.restoreExiledCards(count: restored)
+                log("❤️ Lifelink: +\(restored) card(s) restored.")
             }
 
             // ── Poison on Hit (passive) ─────────────────────────────────
@@ -532,7 +535,7 @@ class GameEngine {
         // ── Utility ───────────────────────────────────────────────────────
         if fx.draw > 0         { drawCards(fx.draw); rDraw = fx.draw }
         if fx.energyGain > 0   { hero?.currentEnergy += fx.energyGain }
-        if fx.heal > 0         { hero?.heal(fx.heal); rHeal = fx.heal; log("❤️ Healed \(fx.heal) HP.") }
+        if fx.heal > 0         { hero?.restoreExiledCards(count: fx.heal); rHeal = fx.heal; log("❤️ Restored \(fx.heal) card(s) from exile.") }
 
         // ── Played-card record ────────────────────────────────────────────
         let targetEnemyId = enemyIndex < currentEnemies.count ? currentEnemies[enemyIndex].id : nil
@@ -562,15 +565,16 @@ class GameEngine {
     /// Each tick deals current bleedStacks as direct damage and decrements.
     private func triggerBleedTick(on enemyId: UUID, hits: Int) {
         guard let idx = currentEnemies.firstIndex(where: { $0.id == enemyId }) else { return }
-        var totalBleed = 0
+        var totalCardsLost = 0
         for _ in 0..<hits {
             guard currentEnemies[idx].bleedStacks > 0 else { break }
-            totalBleed += currentEnemies[idx].bleedStacks
-            currentEnemies[idx].currentHp -= currentEnemies[idx].bleedStacks
+            let cardsLost = max(1, currentEnemies[idx].bleedStacks / 5)
+            totalCardsLost += cardsLost
+            currentEnemies[idx].lifeCards = max(0, currentEnemies[idx].lifeCards - cardsLost)
             currentEnemies[idx].bleedStacks -= 1
         }
-        if totalBleed > 0 {
-            log("🩸 \(currentEnemies[idx].name) bleeds for \(totalBleed) damage.")
+        if totalCardsLost > 0 {
+            log("🩸 \(currentEnemies[idx].name) bleeds for \(totalCardsLost) life card(s).")
         }
     }
 
@@ -588,7 +592,9 @@ class GameEngine {
             log("🛡️ \(name) blocks \(blocked) damage.")
         }
         if leftover > 0 {
-            currentEnemies[idx].takeDamage(leftover)
+            let cardsExiled = max(1, leftover / 5)
+            currentEnemies[idx].takeDamage(cardsExiled)
+            log("💀 \(name) loses \(cardsExiled) life card(s).")
         } else {
             log("✅ \(name) fully blocked the attack!")
         }
@@ -632,10 +638,11 @@ class GameEngine {
         let burn = currentEnemies[idx].burnStacks
         if burn >= threshold {
             let name = currentEnemies[idx].name
-            log("💥 IGNITE BURST! \(name) explodes for \(burn) AoE damage!")
+            let cardsLost = max(1, burn / 5)
+            log("💥 IGNITE BURST! \(name) explodes for \(cardsLost) life card(s) AoE!")
             currentEnemies[idx].burnStacks = 0
             for i in currentEnemies.indices {
-                currentEnemies[i].currentHp -= burn
+                currentEnemies[i].lifeCards = max(0, currentEnemies[i].lifeCards - cardsLost)
             }
         }
     }
@@ -811,15 +818,21 @@ class GameEngine {
                 log("🛡️ Blocked \(blocked) damage with \(blockedCards.count) card(s).")
             }
             if remaining > 0 {
+                let cardsExiled = max(1, remaining / 5)
                 // ── Endure: survive lethal once ──────────────────────────
                 if passives.hasEndure && !hasEnduredThisCombat
-                    && (hero?.currentHp ?? 0) <= remaining {
-                    hero?.currentHp = 1
+                    && (hero?.totalCardPool ?? 0) <= cardsExiled {
+                    // Leave exactly 1 card in the pool
+                    if var h = hero {
+                        let toExile = max(0, h.totalCardPool - 1)
+                        if toExile > 0 { h.exileCards(count: toExile) }
+                        hero = h
+                    }
                     hasEnduredThisCombat = true
                     log("🛡️ Endure! Survived a lethal blow!")
                 } else {
-                    hero?.takeDamage(remaining)
-                    log("💥 Took \(remaining) damage.")
+                    hero?.exileCards(count: cardsExiled)
+                    log("💀 You lose \(cardsExiled) card(s) to the attack!")
                 }
                 // ── Rage: +N STR per damage event ───────────────────────
                 if passives.rageOnHit > 0 {
@@ -907,8 +920,8 @@ class GameEngine {
         let lifePerKill = hero?.lifeOnKill ?? 0
         if lifePerKill > 0 {
             let gained = lifePerKill * count
-            hero?.heal(gained)
-            log("❤️ Life on Kill: +\(gained) HP")
+            hero?.restoreExiledCards(count: gained)
+            log("❤️ Life on Kill: +\(gained) card(s) restored")
         }
         let energyPerKill = hero?.energyOnKill ?? 0
         if energyPerKill > 0 {
@@ -1005,8 +1018,9 @@ class GameEngine {
         case .sorceress:
             // Rushing the spell rotation causes arcane backlash — escalates per recycle.
             let dmg = 2 * deckRecycleCount
-            h.currentHp = max(1, h.currentHp - dmg)
-            log("🌀 Arcane backlash! Took \(dmg) damage (×\(deckRecycleCount) recycle).")
+            let cardsExiled = max(1, dmg / 5)
+            h.exileCards(count: cardsExiled)
+            log("🌀 Arcane backlash! Lost \(cardsExiled) card(s) (×\(deckRecycleCount) recycle).")
         case .rogue:
             // Rogues cycle fast by design — no penalty.
             log("💨 Fleet-footed — no recycle penalty.")
@@ -1155,16 +1169,7 @@ class GameEngine {
         guard h.inventory.remove(id: card.id) != nil else { return }
 
         if let displaced = h.equipment.unequip(slot) {
-            if let bonus = displaced.statBonus, bonus.maxHp > 0 {
-                h.maxHp -= bonus.maxHp
-                h.currentHp = min(h.currentHp, h.maxHp)
-            }
             h.inventory.add(displaced)
-        }
-
-        if let bonus = card.statBonus, bonus.maxHp > 0 {
-            h.maxHp    += bonus.maxHp
-            h.currentHp = min(h.currentHp + bonus.maxHp, h.maxHp)
         }
 
         h.equipment.equip(card)
@@ -1175,10 +1180,6 @@ class GameEngine {
     func unequipToInventory(_ slot: EquipmentSlot) {
         guard var h = hero else { return }
         if let displaced = h.equipment.unequip(slot) {
-            if let bonus = displaced.statBonus, bonus.maxHp > 0 {
-                h.maxHp -= bonus.maxHp
-                h.currentHp = min(h.currentHp, h.maxHp)
-            }
             h.inventory.add(displaced)
         }
         hero = h
@@ -1247,8 +1248,8 @@ class GameEngine {
             log("  ↳ Gained \(fx.energyGain) energy.")
         }
         if fx.heal > 0 {
-            h.heal(fx.heal)
-            log("  ↳ Healed \(fx.heal) HP.")
+            h.restoreExiledCards(count: fx.heal)
+            log("  ↳ Restored \(fx.heal) card(s) from exile.")
         }
         if fx.amplifyNext {
             amplifyActive = true
@@ -1304,10 +1305,7 @@ class GameEngine {
         guard var h = hero, h.statPoints > 0 else { return }
         h.statPoints -= 1
         h.stats[key] += 1
-        if key == .vitality {
-            h.maxHp    += 3
-            h.currentHp = min(h.currentHp + 3, h.maxHp)
-        }
+        // Vitality: restore exiled cards (1 per 3 VIT is handled elsewhere; here just track stat)
         hero = h
         autoSave()
     }
@@ -1472,10 +1470,7 @@ class GameEngine {
         if m.hasShatter       { h.skillPassives.hasShatter       = true }
         if m.hasPermafrost    { h.skillPassives.hasPermafrost    = true }
         if m.hasConflagration { h.skillPassives.hasConflagration = true }
-        if m.maxHpBonus > 0 {
-            h.maxHp += m.maxHpBonus
-            h.currentHp = min(h.currentHp + m.maxHpBonus, h.maxHp)
-        }
+        // maxHpBonus: no longer applicable — deck is life total
         hero = h
         autoSave()
     }

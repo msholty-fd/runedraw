@@ -721,14 +721,14 @@ struct EnemyDrawing {
 
 #Preview {
     let enemies = [
-        Enemy(name: "Skeleton",      icon: "💀", maxHp: 20,  actions: [.attack(6)]),
-        Enemy(name: "Rotwalker",     icon: "🧟", maxHp: 28,  actions: [.attack(7)]),
-        Enemy(name: "Dark Knight",   icon: "🛡️", maxHp: 42,  actions: [.attack(10)]),
-        Enemy(name: "Bog Cultist",   icon: "🧙", maxHp: 34,  actions: [.attack(8)]),
-        Enemy(name: "Ghoul",         icon: "👻", maxHp: 28,  actions: [.attack(9)]),
-        Enemy(name: "Stone Golem",   icon: "🗿", maxHp: 58,  actions: [.defend(10)]),
-        Enemy(name: "Shadow Stalker",icon: "🌑", maxHp: 44,  actions: [.weaken]),
-        Enemy(name: "The Warden",    icon: "⚰️", maxHp: 65,  actions: [.attack(12)]),
+        Enemy(name: "Skeleton",      icon: "💀", lifeCards: 4,  actions: [.attack(6)]),
+        Enemy(name: "Rotwalker",     icon: "🧟", lifeCards: 6,  actions: [.attack(7)]),
+        Enemy(name: "Dark Knight",   icon: "🛡️", lifeCards: 8,  actions: [.attack(10)]),
+        Enemy(name: "Bog Cultist",   icon: "🧙", lifeCards: 7,  actions: [.attack(8)]),
+        Enemy(name: "Ghoul",         icon: "👻", lifeCards: 6,  actions: [.attack(9)]),
+        Enemy(name: "Stone Golem",   icon: "🗿", lifeCards: 12, actions: [.defend(10)]),
+        Enemy(name: "Shadow Stalker",icon: "🌑", lifeCards: 9,  actions: [.weaken]),
+        Enemy(name: "The Warden",    icon: "⚰️", lifeCards: 13, actions: [.attack(12)]),
     ]
     return ZStack {
         Color(red: 0.06, green: 0.02, blue: 0.10).ignoresSafeArea()

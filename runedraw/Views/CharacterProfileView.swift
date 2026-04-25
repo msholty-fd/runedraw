@@ -354,7 +354,7 @@ struct CharacterProfileView: View {
         switch key {
         case .strength:     return "+\(hero.statAttackBonus) ATK"
         case .dexterity:    return "+\(hero.statDefenseBonus) DEF"
-        case .vitality:     return "+\(hero.stats.vitality * 3) HP"
+        case .vitality:     return "+\(hero.stats.vitality / 3) restore"
         case .intelligence: return "+\(hero.statSpellpowerBonus) SP  +\(hero.statEnergyBonus) NRG"
         }
     }
@@ -420,16 +420,20 @@ struct CharacterProfileView: View {
 
     private var vitalsRows: some View {
         VStack(spacing: 10) {
-            vitalBar(icon: "heart.fill", label: "Health",
-                     value: "\(hero.currentHp) / \(hero.maxHp)",
-                     frac: Double(hero.currentHp) / Double(max(1, hero.maxHp)), color: .red)
+            vitalBar(icon: "rectangle.stack.fill", label: "Card Pool",
+                     value: "\(hero.totalCardPool) cards",
+                     frac: hero.exiledCards.isEmpty ? 1.0 : Double(hero.totalCardPool) / Double(max(1, hero.totalCardPool + hero.exiledCards.count)), color: .white)
+            if !hero.exiledCards.isEmpty {
+                vitalBar(icon: "xmark.circle.fill", label: "Exiled",
+                         value: "\(hero.exiledCards.count) cards",
+                         frac: Double(hero.exiledCards.count) / Double(max(1, hero.totalCardPool + hero.exiledCards.count)), color: .red)
+            }
             HStack(spacing: 14) {
                 Text("💰  \(hero.gold) gold")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.25))
                 Spacer()
-                let dc = hero.deck.count + hero.hand.count + hero.discardPile.count
-                Text("🃏  \(dc) cards")
+                Text("🃏  \(hero.totalCardPool) active")
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(0.65))
             }
         }
@@ -742,8 +746,8 @@ struct CharacterProfileView: View {
                 Text(hero.heroClass.rawValue.uppercased())
                     .font(.system(size: 10, weight: .black)).foregroundStyle(.gray).tracking(3)
                 HStack(spacing: 8) {
-                    Label("\(hero.currentHp)/\(hero.maxHp)", systemImage: "heart.fill")
-                        .font(.system(size: 11, weight: .bold)).foregroundStyle(.red)
+                    Label("\(hero.totalCardPool) cards", systemImage: "rectangle.stack.fill")
+                        .font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                     if hero.attackBonus  > 0 {
                         Text("+\(hero.attackBonus) ATK").font(.system(size: 10)).foregroundStyle(.orange)
                     }

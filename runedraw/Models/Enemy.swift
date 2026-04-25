@@ -68,8 +68,8 @@ struct Enemy: Identifiable, Codable {
     let id: UUID
     let name: String
     let icon: String
-    let maxHp: Int
-    var currentHp: Int
+    let maxLifeCards: Int
+    var lifeCards: Int
     var block: Int = 0
     var poisonStacks: Int = 0
     var burnStacks: Int = 0      // fire DoT: ticks each turn, decrements by 1
@@ -90,7 +90,7 @@ struct Enemy: Identifiable, Codable {
     /// Base defense value per card (randomised ±1 when drawing).
     let blockCardValue: Int
 
-    var isAlive: Bool { currentHp > 0 }
+    var isAlive: Bool { lifeCards > 0 }
 
     var currentIntent: EnemyIntent {
         actions[actionIndex % actions.count]
@@ -99,13 +99,13 @@ struct Enemy: Identifiable, Codable {
     /// Total defense available this turn from remaining block cards.
     var totalBlockAvailable: Int { blockHand.map(\.defenseValue).reduce(0, +) }
 
-    init(id: UUID = UUID(), name: String, icon: String = "👹", maxHp: Int,
+    init(id: UUID = UUID(), name: String, icon: String = "👹", lifeCards: Int,
          actions: [EnemyIntent], blockHandSize: Int = 2, blockCardValue: Int = 3) {
         self.id             = id
         self.name           = name
         self.icon           = icon
-        self.maxHp          = maxHp
-        self.currentHp      = maxHp
+        self.maxLifeCards   = lifeCards
+        self.lifeCards      = lifeCards
         self.actions        = actions
         self.blockHandSize  = blockHandSize
         self.blockCardValue = blockCardValue
@@ -147,7 +147,7 @@ struct Enemy: Identifiable, Codable {
             block -= absorbed
             dmg   -= absorbed
         }
-        currentHp = max(0, currentHp - dmg)
+        lifeCards = max(0, lifeCards - dmg)
     }
 
     mutating func advanceAction() {
@@ -156,8 +156,8 @@ struct Enemy: Identifiable, Codable {
 
     mutating func startNewTurn() {
         block = 0
-        if poisonStacks > 0     { currentHp -= poisonStacks; poisonStacks -= 1 }
-        if burnStacks > 0       { currentHp -= burnStacks;   burnStacks -= 1 }
+        if poisonStacks > 0     { lifeCards = max(0, lifeCards - max(1, poisonStacks / 5)); poisonStacks -= 1 }
+        if burnStacks > 0       { lifeCards = max(0, lifeCards - max(1, burnStacks / 5));   burnStacks -= 1 }
         if weakStacks > 0       { weakStacks -= 1 }
         if vulnerableStacks > 0 { vulnerableStacks -= 1 }
         if frozenTurnsLeft > 0  { frozenTurnsLeft -= 1 }
@@ -167,7 +167,7 @@ struct Enemy: Identifiable, Codable {
     // MARK: - Custom Codable (decodeIfPresent for new fields)
 
     enum CodingKeys: String, CodingKey {
-        case id, name, icon, maxHp, currentHp, block, poisonStacks, burnStacks, weakStacks
+        case id, name, icon, maxLifeCards, lifeCards, block, poisonStacks, burnStacks, weakStacks
         case vulnerableStacks, actions, actionIndex, blockHand, blockHandSize, blockCardValue
         case bleedStacks, chillStacks, frozenTurnsLeft
     }
@@ -177,8 +177,8 @@ struct Enemy: Identifiable, Codable {
         id               = try c.decode(UUID.self,           forKey: .id)
         name             = try c.decode(String.self,         forKey: .name)
         icon             = try c.decode(String.self,         forKey: .icon)
-        maxHp            = try c.decode(Int.self,            forKey: .maxHp)
-        currentHp        = try c.decode(Int.self,            forKey: .currentHp)
+        maxLifeCards     = try c.decodeIfPresent(Int.self,   forKey: .maxLifeCards) ?? 10
+        lifeCards        = try c.decodeIfPresent(Int.self,   forKey: .lifeCards) ?? 10
         block            = try c.decodeIfPresent(Int.self,   forKey: .block) ?? 0
         poisonStacks     = try c.decodeIfPresent(Int.self,   forKey: .poisonStacks) ?? 0
         burnStacks       = try c.decodeIfPresent(Int.self,   forKey: .burnStacks) ?? 0

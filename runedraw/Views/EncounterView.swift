@@ -128,12 +128,12 @@ struct EncounterView: View {
                     }
                 }
 
-                // HP bar snapshot
+                // Card pool snapshot
                 HStack(spacing: 8) {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.red)
+                    Image(systemName: "rectangle.stack.fill")
+                        .foregroundStyle(.white)
                         .font(.system(size: 12))
-                    Text("\(hero.currentHp)/\(hero.maxHp) HP")
+                    Text("\(hero.totalCardPool) cards remaining")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white)
                 }

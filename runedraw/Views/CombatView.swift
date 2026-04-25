@@ -131,7 +131,7 @@ struct CombatView: View {
             }
 
         }
-        .onChange(of: hero.currentHp) { old, new in
+        .onChange(of: hero.totalCardPool) { old, new in
             if new < old {
                 SoundManager.heroHit()
                 withAnimation(.easeIn(duration: 0.08)) { heroFlash = true }
@@ -189,13 +189,25 @@ struct CombatView: View {
 
     var heroStatusRow: some View {
         HStack(spacing: 0) {
+            // Cards remaining (deck + hand + discard)
             HStack(spacing: 5) {
-                Image(systemName: "heart.fill")
-                    .foregroundStyle(.red).font(.system(size: 12))
-                Text("\(hero.currentHp)/\(hero.maxHp)")
+                Image(systemName: "rectangle.stack.fill")
+                    .foregroundStyle(.white).font(.system(size: 12))
+                Text("\(hero.totalCardPool)")
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
                     .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.3), value: hero.currentHp)
+                    .animation(.easeInOut(duration: 0.3), value: hero.totalCardPool)
+            }
+
+            // Exiled cards (damage taken)
+            if !hero.exiledCards.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.red.opacity(0.7)).font(.system(size: 12))
+                    Text("\(hero.exiledCards.count)").font(.system(size: 13, weight: .bold)).foregroundStyle(.red.opacity(0.7))
+                        .contentTransition(.numericText())
+                        .animation(.easeInOut(duration: 0.3), value: hero.exiledCards.count)
+                }
+                .padding(.leading, 12)
             }
 
             if hero.block > 0 {
@@ -611,7 +623,7 @@ struct EnemyRow: View {
                     .opacity(floatOpacity)
             }
         }
-        .onChange(of: enemy.currentHp) { old, new in
+        .onChange(of: enemy.lifeCards) { old, new in
             guard new < old else { return }
             SoundManager.enemyHit()
             triggerHitEffects(amount: old - new)
@@ -633,16 +645,16 @@ struct EnemyRow: View {
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(Color.red)
                                 .frame(width: geo.size.width * hpFraction)
-                                .animation(.easeOut(duration: 0.4), value: enemy.currentHp)
+                                .animation(.easeOut(duration: 0.4), value: enemy.lifeCards)
                         }
                     }
                     .frame(height: 5)
 
-                    Text("\(enemy.currentHp)/\(enemy.maxHp)")
+                    Text("\(enemy.lifeCards) cards")
                         .font(.system(size: 11)).foregroundStyle(.gray)
-                        .frame(width: 55, alignment: .trailing)
+                        .frame(width: 60, alignment: .trailing)
                         .contentTransition(.numericText())
-                        .animation(.easeInOut(duration: 0.3), value: enemy.currentHp)
+                        .animation(.easeInOut(duration: 0.3), value: enemy.lifeCards)
                 }
 
                 HStack(spacing: 6) {
@@ -711,8 +723,8 @@ struct EnemyRow: View {
     }
 
     private var hpFraction: CGFloat {
-        guard enemy.maxHp > 0 else { return 0 }
-        return CGFloat(enemy.currentHp) / CGFloat(enemy.maxHp)
+        guard enemy.maxLifeCards > 0 else { return 0 }
+        return CGFloat(enemy.lifeCards) / CGFloat(enemy.maxLifeCards)
     }
 
     private func triggerHitEffects(amount: Int) {

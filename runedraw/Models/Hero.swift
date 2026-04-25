@@ -56,7 +56,7 @@ enum StatKey: String, CaseIterable, Codable {
         switch self {
         case .strength:     return "+1 Attack per 5 pts · unlocks heavy gear"
         case .dexterity:    return "+1 Defense per 5 pts · unlocks light gear"
-        case .vitality:     return "+3 Max HP per point"
+        case .vitality:     return "+1 card restored per 3 VIT · physical resilience"
         case .intelligence: return "+1 Spellpower per 4 pts · +1 Energy per 10 pts · unlocks magic gear"
         }
     }
@@ -351,12 +351,11 @@ struct SkillPassives: Codable {
 
 struct Hero: Codable {
     let heroClass: HeroClass
-    var maxHp: Int
-    var currentHp: Int
     var equipment: HeroEquipment
     var deck: [Card]
     var hand: [Card]
     var discardPile: [Card]
+    var exiledCards: [Card] = []
     var inventory: GearBag
 
     // Leveling
@@ -402,12 +401,11 @@ struct Hero: Codable {
 
     init(heroClass: HeroClass, startingDeck: [Card]) {
         self.heroClass        = heroClass
-        self.maxHp            = heroClass.baseMaxHp
-        self.currentHp        = heroClass.baseMaxHp
         self.equipment        = HeroEquipment()
         self.deck             = startingDeck.shuffled()
         self.hand             = []
         self.discardPile      = []
+        self.exiledCards      = []
         self.inventory        = GearBag()
         self.currentEnergy    = heroClass.baseEnergy
         self.level            = 1
@@ -427,12 +425,11 @@ struct Hero: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         heroClass        = try c.decode(HeroClass.self,       forKey: .heroClass)
-        maxHp            = try c.decode(Int.self,             forKey: .maxHp)
-        currentHp        = try c.decode(Int.self,             forKey: .currentHp)
         equipment        = try c.decode(HeroEquipment.self,   forKey: .equipment)
         deck             = try c.decode([Card].self,          forKey: .deck)
         hand             = try c.decode([Card].self,          forKey: .hand)
         discardPile      = try c.decode([Card].self,          forKey: .discardPile)
+        exiledCards      = try c.decodeIfPresent([Card].self, forKey: .exiledCards) ?? []
         inventory        = try c.decodeIfPresent(GearBag.self, forKey: .inventory) ?? GearBag()
         currentEnergy    = try c.decode(Int.self,             forKey: .currentEnergy)
         block            = try c.decodeIfPresent(Int.self,    forKey: .block) ?? 0
@@ -464,7 +461,8 @@ struct Hero: Codable {
     var startingBlock: Int  { equipment.totalBonuses.startingBlock + skillPassives.startingBlock }
     var poisonOnHit: Int    { equipment.totalBonuses.poisonOnHit + skillPassives.poisonOnHit }
     var energyOnKill: Int   { skillPassives.energyOnKill }
-    var isAlive: Bool       { currentHp > 0 }
+    var totalCardPool: Int  { deck.count + hand.count + discardPile.count }
+    var isAlive: Bool       { totalCardPool > 0 }
 
     // Stat bonuses from attributes (for display)
     var statAttackBonus: Int      { stats.strength / 5 }
@@ -498,24 +496,32 @@ struct Hero: Codable {
         level += 1
         skillPoints += 1
         statPoints  += 3
-        let hpGain = heroClass.hpPerLevel
-        maxHp    += hpGain
-        currentHp = min(currentHp + hpGain, maxHp)
         // attack/defense now come from STR/DEX allocation — no auto-grants
+        // HP is no longer tracked — deck is your life total
     }
 
-    mutating func takeDamage(_ amount: Int) {
-        var dmg = amount
-        if block > 0 {
-            let absorbed = min(block, dmg)
-            block -= absorbed
-            dmg   -= absorbed
+    /// Exile `count` cards from the top of the draw pile (or discard if deck is empty).
+    /// This is how the hero "takes damage" — their card pool shrinks.
+    mutating func exileCards(count: Int) {
+        var remaining = count
+        while remaining > 0 && !deck.isEmpty {
+            exiledCards.append(deck.removeFirst())
+            remaining -= 1
         }
-        currentHp = max(0, currentHp - dmg)
+        while remaining > 0 && !discardPile.isEmpty {
+            exiledCards.append(discardPile.removeFirst())
+            remaining -= 1
+        }
+        // If remaining > 0 and no cards left anywhere, hero is dead (totalCardPool == 0)
     }
 
-    mutating func heal(_ amount: Int) {
-        currentHp = min(maxHp, currentHp + amount)
+    /// Restore `count` cards from exile back into the deck (shuffled in). Potion effect.
+    mutating func restoreExiledCards(count: Int) {
+        let toRestore = min(count, exiledCards.count)
+        guard toRestore > 0 else { return }
+        let restored = Array(exiledCards.prefix(toRestore))
+        exiledCards.removeFirst(toRestore)
+        deck.append(contentsOf: restored.shuffled())
     }
 
     mutating func startNewTurn() {
@@ -523,6 +529,6 @@ struct Hero: Codable {
         block = startingBlock          // startingBlock equipment resets block each turn
         if weakStacks > 0        { weakStacks -= 1 }
         if vulnerableStacks > 0  { vulnerableStacks -= 1 }
-        if poisonStacks > 0      { takeDamage(poisonStacks); poisonStacks -= 1 }
+        if poisonStacks > 0      { exileCards(count: max(1, poisonStacks / 5)); poisonStacks -= 1 }
     }
 }
