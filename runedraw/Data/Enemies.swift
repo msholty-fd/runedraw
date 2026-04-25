@@ -27,10 +27,9 @@ struct EnemyDatabase {
                               actions: [.attack(7), .defend(5), .attack(7)],
                               blockHandSize: 2, blockCardValue: 3)]
             default:
-                return [
-                    Enemy(name: "Skeleton", icon: "💀", lifeCards: 3, actions: [.attack(5)], blockHandSize: 1, blockCardValue: 2),
-                    Enemy(name: "Skeleton", icon: "💀", lifeCards: 3, actions: [.attack(6)], blockHandSize: 1, blockCardValue: 2),
-                ]
+                return [Enemy(name: "Skeleton", icon: "💀", lifeCards: 5,
+                              actions: [.attack(5), .attack(6)],
+                              blockHandSize: 2, blockCardValue: 2)]
             }
 
         // ── Tier 2: The Bleached Moors / Rotmire Caverns ──────────────────
@@ -45,10 +44,9 @@ struct EnemyDatabase {
                               actions: [.attack(8), .poison(3), .attack(8)],
                               blockHandSize: 2, blockCardValue: 3)]     // caster, fragile
             default:
-                return [
-                    Enemy(name: "Ghoul", icon: "👻", lifeCards: 6, actions: [.attack(9)],          blockHandSize: 2, blockCardValue: 3),
-                    Enemy(name: "Ghoul", icon: "👻", lifeCards: 6, actions: [.attack(6), .weaken], blockHandSize: 2, blockCardValue: 3),
-                ]
+                return [Enemy(name: "Ghoul", icon: "👻", lifeCards: 10,
+                              actions: [.attack(9), .weaken, .attack(8)],
+                              blockHandSize: 2, blockCardValue: 3)]
             }
 
         // ── Tier 3: The Ashen Road / Duskfell Ruins ───────────────────────
@@ -80,14 +78,9 @@ struct EnemyDatabase {
                               actions: [.poison(5), .attack(14), .weaken, .attack(16)],
                               blockHandSize: 2, blockCardValue: 5)]
             default:
-                return [
-                    Enemy(name: "Plague Thrall", icon: "🧟", lifeCards: 6,
-                          actions: [.attack(8), .poison(3)], blockHandSize: 2, blockCardValue: 4),
-                    Enemy(name: "Plague Thrall", icon: "🧟", lifeCards: 6,
-                          actions: [.poison(3), .attack(8)], blockHandSize: 2, blockCardValue: 4),
-                    Enemy(name: "Plague Thrall", icon: "🧟", lifeCards: 6,
-                          actions: [.attack(8), .weaken],    blockHandSize: 2, blockCardValue: 4),
-                ]
+                return [Enemy(name: "Plague Thrall", icon: "🧟", lifeCards: 14,
+                              actions: [.attack(8), .poison(3), .weaken, .attack(9)],
+                              blockHandSize: 2, blockCardValue: 4)]
             }
         }
     }
