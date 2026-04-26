@@ -52,12 +52,12 @@ struct CardDatabase {
             // Common
             card("Slam",          "Deal 10 physical damage.",                      cost: 1, rarity: .common, type: .attack, class: .barbarian, effect: CardEffect(damage: 10, damageType: .physical),                                    def: 3, pitch: 2),
             card("Iron Skin",     "Gain 8 block.",                                 cost: 1, rarity: .common, type: .skill,  class: .barbarian, effect: CardEffect(block: 8),                                                            def: 7, pitch: 3),
-            card("Rage",          "Pitch for 3. Gain 2 energy.",                   cost: 0, rarity: .common, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                                       def: 2, pitch: 3),
+            card("Rage",          "Pitch for 3.",                                  cost: 0, rarity: .common, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                                       def: 2, pitch: 3),
             card("Ground Smash",  "Deal 5 damage to ALL enemies.",                 cost: 1, rarity: .common, type: .attack, class: .barbarian, effect: CardEffect(damage: 5, damageType: .physical, damageAllEnemies: true),            def: 2, pitch: 3),
             card("Battle Stance", "Gain 2 Strength. Draw 1.",                      cost: 1, rarity: .common, type: .skill,  class: .barbarian, effect: CardEffect(draw: 1, strengthGain: 2),                                           def: 3, pitch: 2),
             card("Heavy Strike",  "Deal 12 physical damage.",                      cost: 2, rarity: .common, type: .attack, class: .barbarian, effect: CardEffect(damage: 12, damageType: .physical),                                   def: 3, pitch: 2),
             // Magic
-            card("Berserk",       "Draw 2. Gain 1 energy.",                        cost: 1, rarity: .magic,  type: .skill,  class: .barbarian, effect: CardEffect(draw: 2, energyGain: 1),                                             def: 2, pitch: 3),
+            card("Berserk",       "Draw 2.",                                       cost: 1, rarity: .magic,  type: .skill,  class: .barbarian, effect: CardEffect(draw: 2, energyGain: 1),                                             def: 2, pitch: 3),
             card("Shield Slam",   "Deal damage equal to your current block.",       cost: 1, rarity: .magic,  type: .attack, class: .barbarian, effect: CardEffect(damageType: .physical, damageFromBlock: true),                       def: 2, pitch: 2),
             card("War Shout",     "Gain 3 Strength. Gain 5 block.",                cost: 2, rarity: .magic,  type: .skill,  class: .barbarian, effect: CardEffect(block: 5, strengthGain: 3),                                          def: 4, pitch: 2),
             card("Pummel",        "Deal 4 physical damage twice.",                  cost: 2, rarity: .magic,  type: .attack, class: .barbarian, effect: CardEffect(damage: 4, damageType: .physical, times: 2),                         def: 3, pitch: 2),
@@ -116,7 +116,7 @@ struct CardDatabase {
             card("Chain Lightning","Deal 5 arcane to ALL. ⚡Arcane: +5 to all.",    cost: 2, rarity: .magic,  type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .arcane, damageAllEnemies: true, arcaneBonus: 5),              def: 2, pitch: 2),
             card("Amplify",       "Your next attack deals double damage.",            cost: 1, rarity: .magic,  type: .skill,  class: .sorceress, effect: CardEffect(amplifyNext: true),                                                                  def: 2, pitch: 3),
             card("Ignite",        "Apply 5 burn to ALL enemies.",                    cost: 2, rarity: .magic,  type: .skill,  class: .sorceress, effect: CardEffect(applyBurn: 5, applyBurnAll: true),                                                   def: 2, pitch: 2),
-            card("Mana Burst",    "Draw 3. Gain 1 energy.",                          cost: 2, rarity: .magic,  type: .skill,  class: .sorceress, effect: CardEffect(draw: 3, energyGain: 1),                                                             def: 2, pitch: 3),
+            card("Mana Burst",    "Draw 3.",                                         cost: 2, rarity: .magic,  type: .skill,  class: .sorceress, effect: CardEffect(draw: 3, energyGain: 1),                                                             def: 2, pitch: 3),
             // Rare
             card("Blizzard",      "Deal 8 ice to ALL. Apply 3 Chill to ALL.",       cost: 3, rarity: .rare,   type: .attack, class: .sorceress, effect: CardEffect(damage: 8, damageType: .ice, damageAllEnemies: true, applyChillStacks: 3),            def: 2, pitch: 1),
             card("Pyroclasm",     "Deal 20 fire damage. Exhausts.",                  cost: 2, rarity: .rare,   type: .attack, class: .sorceress, effect: CardEffect(damage: 20, damageType: .fire, exhausts: true),                                       def: 2, pitch: 1),
@@ -139,7 +139,7 @@ struct CardDatabase {
             card("Rest",          "Heal 5. Draw 1.",                       cost: 1, rarity: .common, type: .skill,  class: nil, effect: CardEffect(draw: 1, heal: 5),                                                       def: 3, pitch: 3),
             // Magic
             card("Elixir",        "Heal 12.",                              cost: 2, rarity: .magic,  type: .skill,  class: nil, effect: CardEffect(heal: 12),                                                               def: 3, pitch: 2),
-            card("Momentum",      "Draw 2. Gain 1 energy.",                cost: 2, rarity: .magic,  type: .skill,  class: nil, effect: CardEffect(draw: 2, energyGain: 1),                                                def: 2, pitch: 3),
+            card("Momentum",      "Draw 2.",                               cost: 2, rarity: .magic,  type: .skill,  class: nil, effect: CardEffect(draw: 2, energyGain: 1),                                                def: 2, pitch: 3),
             card("Fortify",       "Gain 10 block.",                        cost: 2, rarity: .magic,  type: .skill,  class: nil, effect: CardEffect(block: 10),                                                              def: 7, pitch: 3),
             // Rare
             card("Ancient Scroll","Draw 3.",                               cost: 2, rarity: .rare,   type: .skill,  class: nil, effect: CardEffect(draw: 3),                                                                def: 3, pitch: 3),
@@ -175,8 +175,8 @@ struct CardDatabase {
             card("Battle Cry",   "Gain 3 block. Draw 1.",         cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 3, draw: 1),                                          def: 4, pitch: 3),
             card("Battle Stance","Gain 2 Strength. Draw 1.",      cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(draw: 1, strengthGain: 2),                                   def: 3, pitch: 2),
             card("Battle Stance","Gain 2 Strength. Draw 1.",      cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(draw: 1, strengthGain: 2),                                   def: 3, pitch: 2),
-            card("Rage",         "Pitch for 3. Gain 2 energy.",   cost: 0, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                              def: 2, pitch: 3),
-            card("Rage",         "Pitch for 3. Gain 2 energy.",   cost: 0, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                              def: 2, pitch: 3),
+            card("Rage",         "Pitch for 3.",                   cost: 0, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                              def: 2, pitch: 3),
+            card("Rage",         "Pitch for 3.",                   cost: 0, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                              def: 2, pitch: 3),
         ])
     }
 
@@ -231,8 +231,8 @@ struct CardDatabase {
             card("Mana Shield",  "Gain 8 block.",                     cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(block: 8),                                              def: 6, pitch: 3),
             card("Mana Shield",  "Gain 8 block.",                     cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(block: 8),                                              def: 6, pitch: 3),
             // Draw + setup
-            card("Arcane Surge", "Draw 2 cards. Gain 1 energy.",      cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(draw: 2, energyGain: 1),                               def: 2, pitch: 3),
-            card("Arcane Surge", "Draw 2 cards. Gain 1 energy.",      cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(draw: 2, energyGain: 1),                               def: 2, pitch: 3),
+            card("Arcane Surge", "Draw 2 cards.",                      cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(draw: 2, energyGain: 1),                               def: 2, pitch: 3),
+            card("Arcane Surge", "Draw 2 cards.",                      cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(draw: 2, energyGain: 1),                               def: 2, pitch: 3),
             // Amplify — introduces the double-damage mechanic
             card("Amplify",      "Your next attack deals double damage.", cost: 1, type: .skill, class: .sorceress, effect: CardEffect(amplifyNext: true),                                  def: 2, pitch: 3),
             card("Amplify",      "Your next attack deals double damage.", cost: 1, type: .skill, class: .sorceress, effect: CardEffect(amplifyNext: true),                                  def: 2, pitch: 3),

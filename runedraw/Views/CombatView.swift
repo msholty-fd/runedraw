@@ -5,7 +5,6 @@ struct CombatView: View {
     @State private var heroFlash = false
     @State private var showLevelUp = false
     @State private var levelText = ""
-    @State private var energyPulse = false
     /// Cards that have completed their deal-in animation and are fully visible.
     @State private var revealedCardIDs: Set<UUID> = []
     /// Current impact effect shown over the enemy section.
@@ -254,31 +253,6 @@ struct CombatView: View {
             }
 
             Spacer()
-
-            HStack(spacing: 5) {
-                Text("ENERGY").font(.system(size: 9, weight: .bold)).foregroundStyle(.gray).tracking(2)
-                HStack(spacing: 4) {
-                    ForEach(0..<hero.maxEnergy, id: \.self) { index in
-                        Circle()
-                            .fill(index < hero.currentEnergy
-                                  ? Color(red: 0.2, green: 0.5, blue: 1.0)
-                                  : Color.gray.opacity(0.25))
-                            .frame(width: 13, height: 13)
-                            .scaleEffect(index < hero.currentEnergy && energyPulse ? 1.4 : 1.0)
-                            .animation(
-                                .spring(response: 0.3, dampingFraction: 0.45)
-                                    .delay(Double(index) * 0.07),
-                                value: energyPulse
-                            )
-                    }
-                }
-            }
-        }
-        .onChange(of: hero.currentEnergy) { old, new in
-            if new > old {
-                energyPulse = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { energyPulse = false }
-            }
         }
     }
 

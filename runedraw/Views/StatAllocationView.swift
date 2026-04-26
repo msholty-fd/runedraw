@@ -79,8 +79,8 @@ struct StatAllocationView: View {
         case .vitality:
             return "+\(hero.stats.vitality * 3) Max HP"
         case .intelligence:
-            let b = hero.stats.intelligence / 10
-            return b > 0 ? "+\(b) Energy" : "0 Energy"
+            let b = hero.statSpellpowerBonus
+            return b > 0 ? "+\(b) Spellpower" : "+0 Spellpower"
         }
     }
 

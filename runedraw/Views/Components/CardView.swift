@@ -132,7 +132,7 @@ struct CardView: View {
     }
 }
 
-/// The cost indicator — replaces the old "energy crystal" branding with a neutral gem look.
+/// The cost indicator — shows the pitch cost required to play this card.
 struct CostCrystal: View {
     let cost: Int
 

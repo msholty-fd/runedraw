@@ -310,7 +310,7 @@ struct CharacterProfileView: View {
         case .strength:     return "+\(hero.statAttackBonus) ATK"
         case .dexterity:    return "+\(hero.statDefenseBonus) DEF"
         case .vitality:     return "+\(hero.stats.vitality / 3) restore"
-        case .intelligence: return "+\(hero.statSpellpowerBonus) SP  +\(hero.statEnergyBonus) NRG"
+        case .intelligence: return "+\(hero.statSpellpowerBonus) SP"
         }
     }
 
@@ -719,8 +719,7 @@ struct CardDetailSheet: View {
                             HStack(spacing: 6) {
                                 // Cost
                                 HStack(spacing: 3) {
-                                    Image(systemName: "bolt.fill").font(.system(size: 9))
-                                    Text("\(card.cost) Energy")
+                                    Text("Cost \(card.cost)")
                                 }
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(.yellow.opacity(0.8))
