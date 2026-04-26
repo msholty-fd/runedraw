@@ -30,7 +30,8 @@ struct LootPickupView: View {
     init(engine: GameEngine, groundLoot: [Card]) {
         self.engine = engine
         self.groundLoot = groundLoot
-        self._remaining = State(initialValue: groundLoot)
+        // Equipment cards are no longer generated, but filter them just in case
+        self._remaining = State(initialValue: groundLoot.filter { !$0.isEquipment })
         // Start bar at the pre-combat position
         let lvl = engine.combatStartLevel
         let expToNext = max(1, lvl * 100)
@@ -95,7 +96,6 @@ struct LootPickupView: View {
                 if !remaining.isEmpty {
                     let card = remaining[min(currentPage, remaining.count - 1)]
                     let fits = canFit(card)
-                    let isCombatCard = !card.isEquipment
                     HStack(spacing: 16) {
                         Button { removeCard(card, pickUp: false) } label: {
                             Text("LEAVE")
@@ -108,10 +108,10 @@ struct LootPickupView: View {
                         .buttonStyle(.plain)
 
                         Button { if fits { removeCard(card, pickUp: true) } } label: {
-                            Text(fits ? (isCombatCard ? "ADD TO COLLECTION" : "PICK UP") : "BAG FULL")
+                            Text(fits ? "ADD TO COLLECTION" : "BAG FULL")
                                 .font(.system(size: 13, weight: .black)).tracking(3)
                                 .foregroundStyle(fits ? .black : .gray)
-                                .frame(width: isCombatCard ? 200 : 150, height: 44)
+                                .frame(width: 200, height: 44)
                                 .background(
                                     fits
                                     ? AnyShapeStyle(LinearGradient(
@@ -131,19 +131,16 @@ struct LootPickupView: View {
                     Spacer().frame(height: 60)
                 }
 
-                // Bag + collection summary
-                VStack(spacing: 2) {
-                    GearBagStrip(bag: hero.inventory)
-                    if hero.cardCollection.count > 0 {
-                        HStack(spacing: 6) {
-                            Image(systemName: "rectangle.stack.fill")
-                                .font(.system(size: 11)).foregroundStyle(.purple.opacity(0.6))
-                            Text("\(hero.cardCollection.count) card\(hero.cardCollection.count == 1 ? "" : "s") in collection")
-                                .font(.system(size: 11)).foregroundStyle(.gray.opacity(0.5))
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20).padding(.bottom, 4)
+                // Collection summary
+                if hero.cardCollection.count > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "rectangle.stack.fill")
+                            .font(.system(size: 11)).foregroundStyle(.purple.opacity(0.6))
+                        Text("\(hero.cardCollection.count) card\(hero.cardCollection.count == 1 ? "" : "s") in collection")
+                            .font(.system(size: 11)).foregroundStyle(.gray.opacity(0.5))
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20).padding(.bottom, 4)
                 }
 
                 Spacer().frame(height: 14)

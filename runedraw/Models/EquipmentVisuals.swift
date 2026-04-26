@@ -24,13 +24,6 @@ struct EquipmentVisuals {
         }
     }
 
-    init(from equipment: HeroEquipment) {
-        helm    = Self.helmVisual(equipment.helm)
-        chest   = Self.chestVisual(equipment.chest)
-        weapon  = Self.weaponVisual(equipment.weapon)
-        offHand = Self.offHandVisual(equipment.offHand)
-    }
-
     private init(helm: HelmVisual, chest: ChestVisual, weapon: WeaponVisual, offHand: OffHandVisual) {
         self.helm = helm; self.chest = chest; self.weapon = weapon; self.offHand = offHand
     }

@@ -81,13 +81,13 @@ struct ShopView: View {
     // MARK: - Sell Section
 
     var sellSection: some View {
-        let items = hero.inventory.items
+        let items = hero.cardCollection
         guard !items.isEmpty else {
             return AnyView(EmptyView())
         }
         return AnyView(
             VStack(alignment: .leading, spacing: 10) {
-                sectionLabel("SELL ITEMS")
+                sectionLabel("SELL CARDS")
                 ForEach(items) { card in
                     SellItemRow(
                         card: card,
@@ -129,7 +129,7 @@ private struct ShopItemRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(card.rarity.color.opacity(0.12))
                     .frame(width: 44, height: 44)
-                Text(card.equipmentSlot?.icon ?? "🎒")
+                Text(card.effect.damageType.icon)
                     .font(.system(size: 24))
                     .opacity(item.isPurchased ? 0.35 : 1.0)
             }
@@ -142,28 +142,11 @@ private struct ShopItemRow: View {
                         .foregroundStyle(item.isPurchased ? .gray : (card.isUnique ? card.rarity.color : .white))
                     rarityBadge(card)
                 }
-                if !card.modifiers.isEmpty {
-                    Text(card.modifiers.map(\.label).joined(separator: "  ·  "))
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color(red: 0.5, green: 0.9, blue: 0.5).opacity(item.isPurchased ? 0.4 : 1.0))
-                        .lineLimit(2)
-                } else if let bonus = card.statBonus {
-                    Text(bonus.description.components(separatedBy: "\n").joined(separator: "  ·  "))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.green.opacity(item.isPurchased ? 0.3 : 0.8))
-                        .lineLimit(2)
-                }
-                if let reqs = card.requirements, !reqs.isEmpty {
-                    HStack(spacing: 3) {
-                        Image(systemName: meetsReqs ? "checkmark.circle.fill" : "lock.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(meetsReqs ? .green : .red.opacity(0.8))
-                        Text("Requires \(reqs.description)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(meetsReqs ? .green.opacity(0.7) : Color(red: 1.0, green: 0.35, blue: 0.35))
-                    }
-                }
-                Text(card.equipmentSlot?.rawValue ?? "")
+                Text(card.description)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.gray.opacity(item.isPurchased ? 0.3 : 0.7))
+                    .lineLimit(2)
+                Text(card.type.rawValue.uppercased())
                     .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.45))
             }
 
@@ -225,7 +208,7 @@ private struct SellItemRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(card.rarity.color.opacity(0.1))
                     .frame(width: 40, height: 40)
-                Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 22))
+                Text(card.effect.damageType.icon).font(.system(size: 22))
             }
 
             VStack(alignment: .leading, spacing: 2) {

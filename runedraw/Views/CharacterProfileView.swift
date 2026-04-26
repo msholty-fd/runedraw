@@ -5,32 +5,12 @@ import SwiftUI
 private enum ProfileTab: String, CaseIterable {
     case profile  = "Profile"
     case deck     = "Deck"
-    case equipped = "Equipped"
-    case items    = "Items"
 
     var icon: String {
         switch self {
         case .profile:  return "person.fill"
         case .deck:     return "rectangle.stack.fill"
-        case .equipped: return "shield.fill"
-        case .items:    return "bag.fill"
         }
-    }
-}
-
-// MARK: - Item Selection
-
-private enum ItemSelection {
-    case inventory(Card)
-    case equipped(EquipmentSlot)
-
-    var card: Card? {
-        if case .inventory(let c) = self { return c }
-        return nil
-    }
-    var slot: EquipmentSlot? {
-        if case .equipped(let s) = self { return s }
-        return nil
     }
 }
 
@@ -39,13 +19,10 @@ private enum ItemSelection {
 struct CharacterProfileView: View {
     let engine: GameEngine
     @State private var tab: ProfileTab = .profile
-    @State private var selection: ItemSelection? = nil
-    @State private var confirmDrop = false
     @State private var selectedSkillNode: SkillNode? = nil
     @State private var selectedCardForDetail: Card? = nil
     @Namespace private var tabNS
 
-    private let panelHeight: CGFloat = 190
     private var hero: Hero { engine.hero ?? Hero(heroClass: .barbarian, startingDeck: []) }
 
     var body: some View {
@@ -58,15 +35,7 @@ struct CharacterProfileView: View {
                 Divider().background(.white.opacity(0.08))
                 tabContent
             }
-
-            if let sel = selection {
-                itemPanel(sel)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .zIndex(10)
-            }
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.80), value: selection?.card?.id)
-        .onChange(of: tab) { _, _ in withAnimation { selection = nil } }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .sheet(item: $selectedSkillNode) { node in
@@ -85,18 +54,6 @@ struct CharacterProfileView: View {
         }
         .sheet(item: $selectedCardForDetail) { card in
             CardDetailSheet(card: card)
-        }
-        .confirmationDialog(
-            "Drop \(selection?.card?.name ?? "")?",
-            isPresented: $confirmDrop, titleVisibility: .visible
-        ) {
-            Button("Drop Item", role: .destructive) {
-                if let card = selection?.card { engine.dropFromInventory(card) }
-                selection = nil
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This item will be permanently lost.")
         }
     }
 
@@ -163,8 +120,6 @@ struct CharacterProfileView: View {
         switch tab {
         case .profile:  profileTab
         case .deck:     deckTab
-        case .equipped: equippedTab
-        case .items:    itemsTab
         }
     }
 
@@ -173,7 +128,7 @@ struct CharacterProfileView: View {
     private var profileTab: some View {
         ScrollView {
             VStack(spacing: 0) {
-                HeroPortraitView(heroClass: hero.heroClass, equipment: hero.equipment, size: 175)
+                HeroPortraitView(heroClass: hero.heroClass, size: 175)
                     .shadow(color: accent.opacity(0.38), radius: 22)
                     .padding(.top, 14)
 
@@ -680,63 +635,6 @@ struct CharacterProfileView: View {
         .frame(maxWidth: .infinity).padding(.vertical, 24)
     }
 
-    // MARK: - Equipped Tab
-
-    private var equippedTab: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                miniHeroBar
-                Divider().background(.white.opacity(0.08))
-                sectionHeader("EQUIPPED").padding(.top, 14).padding(.bottom, 2)
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-                    ForEach(EquipmentSlot.allCases, id: \.self) { slot in
-                        EquippedSlotTile(
-                            slot: slot,
-                            card: hero.equipment.equipped(in: slot),
-                            isSelected: selection?.slot == .some(slot)
-                        )
-                        .onTapGesture {
-                            guard hero.equipment.equipped(in: slot) != nil else { return }
-                            let already = selection?.slot == .some(slot)
-                            withAnimation { selection = already ? nil : .equipped(slot) }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                if selection != nil { Color.clear.frame(height: panelHeight + 16) }
-            }
-            .padding(.bottom, 8)
-        }
-        .onTapGesture { if selection != nil { withAnimation { selection = nil } } }
-    }
-
-    // MARK: - Items Tab
-
-    private var itemsTab: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                miniHeroBar
-                Divider().background(.white.opacity(0.08))
-                HStack(alignment: .firstTextBaseline) {
-                    sectionHeader("INVENTORY").padding(.top, 14).padding(.bottom, 2)
-                    Spacer()
-                    Text("\(hero.inventory.count) item\(hero.inventory.count == 1 ? "" : "s")")
-                        .font(.system(size: 10)).foregroundStyle(.gray.opacity(0.40))
-                        .padding(.trailing, 20).padding(.top, 14)
-                }
-                GearListView(bag: hero.inventory, selectedId: selection?.card?.id) { card in
-                    let already = selection?.card?.id == card.id
-                    withAnimation { selection = already ? nil : .inventory(card) }
-                }
-                .padding(.horizontal, 16)
-                .simultaneousGesture(TapGesture().onEnded { })
-                if selection != nil { Color.clear.frame(height: panelHeight + 16) }
-            }
-            .padding(.bottom, 8)
-        }
-        .onTapGesture { if selection != nil { withAnimation { selection = nil } } }
-    }
-
     // MARK: - Mini Hero Bar
 
     private var miniHeroBar: some View {
@@ -764,120 +662,6 @@ struct CharacterProfileView: View {
                 .overlay(Capsule().stroke(accent.opacity(0.30), lineWidth: 1))
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
-    }
-
-    // MARK: - Floating Item Panel
-
-    @ViewBuilder
-    private func itemPanel(_ sel: ItemSelection) -> some View {
-        VStack(spacing: 0) {
-            Capsule().fill(.gray.opacity(0.30)).frame(width: 36, height: 4).padding(.top, 10)
-            switch sel {
-            case .inventory(let card): inventoryPanel(card)
-            case .equipped(let slot):
-                if let card = hero.equipment.equipped(in: slot) {
-                    equippedPanel(slot: slot, card: card)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .background(
-            Color(red: 0.10, green: 0.06, blue: 0.18)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(panelAccent(sel).opacity(0.22)).frame(height: 2)
-                }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(0.5), radius: 20)
-        .padding(.horizontal, 8).padding(.bottom, 8)
-        .allowsHitTesting(true)
-        .onTapGesture {}
-    }
-
-    private func inventoryPanel(_ card: Card) -> some View {
-        let canEquip = hero.meetsRequirements(for: card)
-        return HStack(alignment: .top, spacing: 14) {
-            Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 36))
-                .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
-                .frame(width: 46)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(card.name).font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(card.isUnique ? card.rarity.color : .white)
-                    rarityBadge(card)
-                }
-                cardStatLines(card).lineLimit(3)
-                if let reqs = card.requirements, !reqs.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: canEquip ? "checkmark.circle.fill" : "lock.fill")
-                            .font(.system(size: 9)).foregroundStyle(canEquip ? .green : .red.opacity(0.85))
-                        Text("Requires \(reqs.description)").font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(canEquip ? .green.opacity(0.8)
-                                             : Color(red: 1.0, green: 0.35, blue: 0.35))
-                    }
-                }
-                if let fl = card.flavorText {
-                    Text(fl).font(.system(size: 10)).foregroundStyle(.gray.opacity(0.55))
-                        .italic()
-                }
-            }
-            Spacer()
-            VStack(spacing: 8) {
-                Button { engine.equipFromInventory(card); selection = nil } label: {
-                    Text("EQUIP").font(.system(size: 12, weight: .black))
-                        .foregroundStyle(canEquip ? .black : .gray.opacity(0.5))
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(canEquip
-                                    ? AnyShapeStyle(card.rarity.color)
-                                    : AnyShapeStyle(Color.white.opacity(0.07)))
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain).disabled(!canEquip)
-                Button { confirmDrop = true } label: {
-                    Image(systemName: "trash").font(.system(size: 13)).foregroundStyle(.gray)
-                        .padding(8).background(Color.white.opacity(0.07)).clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 14)
-    }
-
-    private func equippedPanel(slot: EquipmentSlot, card: Card) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Text(card.equipmentSlot?.icon ?? "🎒").font(.system(size: 36))
-                .shadow(color: card.rarity.color.opacity(0.6), radius: 6)
-                .frame(width: 46)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(card.name).font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(card.isUnique ? card.rarity.color : .white)
-                    rarityBadge(card)
-                }
-                Text("Equipped in \(slot.rawValue)").font(.system(size: 10)).foregroundStyle(.gray.opacity(0.5))
-                cardStatLines(card).lineLimit(3)
-            }
-            Spacer()
-            Button { engine.unequipToInventory(slot); selection = nil } label: {
-                VStack(spacing: 3) {
-                    Image(systemName: "arrow.down.to.line").font(.system(size: 14))
-                    Text("UNEQUIP").font(.system(size: 9, weight: .black)).tracking(1)
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Color.white.opacity(0.10))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 16).padding(.vertical, 14)
-    }
-
-    private func panelAccent(_ sel: ItemSelection) -> Color {
-        switch sel {
-        case .inventory(let c): return c.rarity.color
-        case .equipped(let s):  return hero.equipment.equipped(in: s)?.rarity.color ?? .gray
-        }
     }
 
     // MARK: - Shared helpers

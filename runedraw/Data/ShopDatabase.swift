@@ -23,12 +23,12 @@ struct ShopDatabase {
 
     static func generateShops(floorNumber: Int) -> [Shop] {
         [
-            Shop(name: "The Ember Forge",   icon: "⚔️", speciality: "Weapons & Off-Hands",
-                 items: filtered([.weapon, .offHand], floor: floorNumber, count: 5)),
-            Shop(name: "The Wardkeeper",    icon: "🛡️", speciality: "Armor & Footwear",
-                 items: filtered([.helm, .chest, .boots], floor: floorNumber, count: 5)),
-            Shop(name: "Curio Corner",      icon: "💍", speciality: "Rings & Amulets",
-                 items: filtered([.ring, .amulet], floor: floorNumber, count: 5)),
+            Shop(name: "The Card Merchant", icon: "🃏", speciality: "Combat Cards",
+                 items: cardItems(floor: floorNumber, count: 5, heroClass: .barbarian)),
+            Shop(name: "The Arcane Market", icon: "🔮", speciality: "Spell Cards",
+                 items: cardItems(floor: floorNumber, count: 5, heroClass: .sorceress)),
+            Shop(name: "Shadow Exchange",   icon: "🗡️", speciality: "Rogue Cards",
+                 items: cardItems(floor: floorNumber, count: 5, heroClass: .rogue)),
         ]
     }
 
@@ -50,19 +50,26 @@ struct ShopDatabase {
 
     // MARK: - Private helpers
 
-    private static func filtered(_ slots: [EquipmentSlot], floor: Int, count: Int) -> [ShopItem] {
+    private static func cardItems(floor: Int, count: Int, heroClass: HeroClass) -> [ShopItem] {
         var results: [ShopItem] = []
         var seen = Set<String>()
         var attempts = 0
         while results.count < count && attempts < 100 {
             attempts += 1
-            guard let card = LootDatabase.generateLoot(floorNumber: floor, isBoss: false, count: 1).first,
-                  let slot = card.equipmentSlot,
-                  slots.contains(slot),
+            guard let card = CardDatabase.droppableCard(for: heroClass, rarity: rarityForShop(floor: floor)),
                   !seen.contains(card.name) else { continue }
             seen.insert(card.name)
             results.append(ShopItem(card: card, price: randomPrice(card.rarity)))
         }
         return results
+    }
+
+    private static func rarityForShop(floor: Int) -> CardRarity {
+        let r = Double.random(in: 0..<1)
+        switch floor {
+        case 1:  return r < 0.05 ? .rare : r < 0.30 ? .magic : .common
+        case 2:  return r < 0.10 ? .rare : r < 0.45 ? .magic : .common
+        default: return r < 0.20 ? .rare : r < 0.60 ? .magic : .common
+        }
     }
 }

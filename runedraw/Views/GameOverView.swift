@@ -48,40 +48,6 @@ struct GameOverView: View {
 
                 Spacer().frame(height: 32)
 
-                // Equipment collected
-                if let hero = engine.hero, !hero.equipment.allEquipped.isEmpty {
-                    VStack(spacing: 12) {
-                        Text("EQUIPMENT COLLECTED")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.gray)
-                            .tracking(4)
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(hero.equipment.allEquipped) { item in
-                                    HStack(spacing: 5) {
-                                        Text(item.equipmentSlot?.icon ?? "🎒")
-                                            .font(.caption)
-                                        Text(item.name)
-                                            .font(.caption.bold())
-                                            .foregroundStyle(.white)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.white.opacity(0.07))
-                                            .overlay(
-                                                Capsule()
-                                                    .stroke(item.rarity.color.opacity(0.35), lineWidth: 1)
-                                            )
-                                    )
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-                }
 
                 Spacer()
 

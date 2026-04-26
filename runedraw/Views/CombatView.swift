@@ -52,12 +52,6 @@ struct CombatView: View {
                     .padding(.vertical, 10)
                     .background(Color.black.opacity(0.4))
 
-                if hasEquippedAbilities {
-                    equipmentStrip
-                        .padding(.horizontal, 12)
-                        .background(Color.black.opacity(0.35))
-                }
-
                 Divider().background(.gray.opacity(0.15))
 
                 if !engine.playedCards.isEmpty && !engine.isBlockPhase {
@@ -665,42 +659,6 @@ struct CombatView: View {
         }
     }
 
-    // MARK: - Equipment Activation Strip
-
-    private var hasEquippedAbilities: Bool {
-        EquipmentSlot.allCases.contains { slot in
-            guard let card = hero.equipment.equipped(in: slot) else { return false }
-            let fx = card.effect
-            return fx.damage > 0 || fx.block > 0 || fx.draw > 0 || fx.energyGain > 0 ||
-                   fx.heal > 0 || fx.poisonStacks > 0 || fx.strengthGain > 0 ||
-                   fx.amplifyNext || fx.vulnerableStacks > 0 || fx.applyBurn > 0
-        }
-    }
-
-    private var equipmentStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(EquipmentSlot.allCases, id: \.self) { slot in
-                    if let card = hero.equipment.equipped(in: slot) {
-                        let fx = card.effect
-                        let hasAbility = fx.damage > 0 || fx.block > 0 || fx.draw > 0 ||
-                                         fx.energyGain > 0 || fx.heal > 0 || fx.poisonStacks > 0 ||
-                                         fx.strengthGain > 0 || fx.amplifyNext ||
-                                         fx.vulnerableStacks > 0 || fx.applyBurn > 0
-                        if hasAbility {
-                            let canUse = engine.canActivateEquipment(slot) && !engine.isBlockPhase
-                            let isUsed = engine.usedEquipmentActivations.contains(slot)
-                            EquipmentActivationTile(card: card, canActivate: canUse, isUsed: isUsed) {
-                                SoundManager.cardPlay()
-                                engine.activateEquipment(slot)
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.vertical, 6)
-        }
-    }
 }
 
 // MARK: - Enemy Row
@@ -882,53 +840,6 @@ struct StatusPill: View {
         .padding(.horizontal, 6).padding(.vertical, 2)
         .background(color.opacity(0.12))
         .clipShape(Capsule())
-    }
-}
-
-// MARK: - Equipment Activation Tile
-
-struct EquipmentActivationTile: View {
-    let card: Card
-    let canActivate: Bool
-    let isUsed: Bool
-    let onActivate: () -> Void
-
-    var body: some View {
-        Button(action: onActivate) {
-            HStack(spacing: 5) {
-                Text(card.equipmentSlot?.icon ?? "⚙️")
-                    .font(.system(size: 13))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(card.name)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(isUsed ? .gray : .white)
-                        .lineLimit(1)
-                    if card.activatedCost > 0 {
-                        Text("\(card.activatedCost)⚡")
-                            .font(.system(size: 9, weight: .black))
-                            .foregroundStyle(canActivate ? Color(red: 0.4, green: 0.7, blue: 1.0) : .gray)
-                    } else {
-                        Text("FREE")
-                            .font(.system(size: 8, weight: .black))
-                            .foregroundStyle(canActivate ? .green : .gray)
-                            .tracking(1)
-                    }
-                }
-            }
-            .padding(.horizontal, 9).padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(isUsed ? Color.white.opacity(0.04)
-                          : canActivate ? card.rarity.color.opacity(0.15) : Color.white.opacity(0.06))
-                    .overlay(RoundedRectangle(cornerRadius: 7)
-                        .stroke(isUsed ? Color.gray.opacity(0.15)
-                                : canActivate ? card.rarity.color.opacity(0.5) : Color.gray.opacity(0.2),
-                                lineWidth: 1))
-            )
-            .opacity(isUsed ? 0.45 : 1.0)
-        }
-        .buttonStyle(.plain)
-        .disabled(!canActivate)
     }
 }
 

@@ -225,19 +225,6 @@ struct HeroStatusBar: View {
             }
 
             Spacer()
-
-            // Equipment
-            let count = hero.equipment.allEquipped.count
-            if count > 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: "shield.fill")
-                        .font(.caption)
-                        .foregroundStyle(Color(red: 0.9, green: 0.7, blue: 0.2))
-                    Text("\(count) items")
-                        .font(.caption)
-                        .foregroundStyle(Color(red: 0.9, green: 0.7, blue: 0.2))
-                }
-            }
         }
     }
 

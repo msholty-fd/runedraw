@@ -174,61 +174,9 @@ enum HeroClass: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct HeroEquipment: Codable {
-    var weapon:  Card? = nil
-    var offHand: Card? = nil
-    var helm:    Card? = nil
-    var chest:   Card? = nil
-    var boots:   Card? = nil
-    var ring:    Card? = nil
-    var amulet:  Card? = nil
-
-    var allEquipped: [Card] {
-        [weapon, offHand, helm, chest, boots, ring, amulet].compactMap { $0 }
-    }
-
-    mutating func equip(_ card: Card) {
-        guard let slot = card.equipmentSlot else { return }
-        switch slot {
-        case .weapon:  weapon  = card
-        case .offHand: offHand = card
-        case .helm:    helm    = card
-        case .chest:   chest   = card
-        case .boots:   boots   = card
-        case .ring:    ring    = card
-        case .amulet:  amulet  = card
-        }
-    }
-
-    // Returns the item that was in the slot (if any), after clearing it
-    mutating func unequip(_ slot: EquipmentSlot) -> Card? {
-        switch slot {
-        case .weapon:  let old = weapon;  weapon  = nil; return old
-        case .offHand: let old = offHand; offHand = nil; return old
-        case .helm:    let old = helm;    helm    = nil; return old
-        case .chest:   let old = chest;   chest   = nil; return old
-        case .boots:   let old = boots;   boots   = nil; return old
-        case .ring:    let old = ring;    ring    = nil; return old
-        case .amulet:  let old = amulet;  amulet  = nil; return old
-        }
-    }
-
-    func equipped(in slot: EquipmentSlot) -> Card? {
-        switch slot {
-        case .weapon:  return weapon
-        case .offHand: return offHand
-        case .helm:    return helm
-        case .chest:   return chest
-        case .boots:   return boots
-        case .ring:    return ring
-        case .amulet:  return amulet
-        }
-    }
-
-    var totalBonuses: StatBonus {
-        allEquipped.compactMap { $0.statBonus }.reduce(StatBonus(), +)
-    }
-}
+// HeroEquipment — kept as an empty stub so old save files decode without crashing.
+// Equipment has been removed from gameplay; this type is never populated at runtime.
+struct HeroEquipment: Codable {}
 
 // MARK: - Skill Passives
 
@@ -351,12 +299,10 @@ struct SkillPassives: Codable {
 
 struct Hero: Codable {
     let heroClass: HeroClass
-    var equipment: HeroEquipment
     var deck: [Card]
     var hand: [Card]
     var discardPile: [Card]
     var exiledCards: [Card] = []
-    var inventory: GearBag
 
     // Leveling
     var level: Int = 1
@@ -397,16 +343,25 @@ struct Hero: Codable {
     var weakStacks: Int = 0
     var vulnerableStacks: Int = 0
 
-    static let maxInventorySize = 20
+    // Explicit CodingKeys for all stored properties.
+    // Old save files may contain extra keys (e.g. "equipment", "inventory") that are
+    // no longer stored here; JSONDecoder ignores unknown keys by default so those are
+    // silently discarded without needing to list them.
+    enum CodingKeys: String, CodingKey {
+        case heroClass, deck, hand, discardPile, exiledCards
+        case currentEnergy, block, poisonStacks, weakStacks, vulnerableStacks
+        case level, experience, baseAttackBonus, baseDefenseBonus
+        case stats, statPoints, gold, townPortals
+        case skillPoints, unlockedSkills, skillPassives
+        case combatStrength, unlockedWaypoints, cardCollection
+    }
 
     init(heroClass: HeroClass, startingDeck: [Card]) {
         self.heroClass        = heroClass
-        self.equipment        = HeroEquipment()
         self.deck             = startingDeck.shuffled()
         self.hand             = []
         self.discardPile      = []
         self.exiledCards      = []
-        self.inventory        = GearBag()
         self.currentEnergy    = heroClass.baseEnergy
         self.level            = 1
         self.experience       = 0
@@ -425,12 +380,11 @@ struct Hero: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         heroClass        = try c.decode(HeroClass.self,       forKey: .heroClass)
-        equipment        = try c.decode(HeroEquipment.self,   forKey: .equipment)
+        // Old saves had "equipment" and "inventory" keys — JSONDecoder ignores them automatically.
         deck             = try c.decode([Card].self,          forKey: .deck)
         hand             = try c.decode([Card].self,          forKey: .hand)
         discardPile      = try c.decode([Card].self,          forKey: .discardPile)
         exiledCards      = try c.decodeIfPresent([Card].self, forKey: .exiledCards) ?? []
-        inventory        = try c.decodeIfPresent(GearBag.self, forKey: .inventory) ?? GearBag()
         currentEnergy    = try c.decode(Int.self,             forKey: .currentEnergy)
         block            = try c.decodeIfPresent(Int.self,    forKey: .block) ?? 0
         poisonStacks     = try c.decodeIfPresent(Int.self,    forKey: .poisonStacks) ?? 0
@@ -452,14 +406,14 @@ struct Hero: Codable {
         skillPassives       = try c.decodeIfPresent(SkillPassives.self, forKey: .skillPassives) ?? SkillPassives()
     }
 
-    var maxEnergy: Int      { heroClass.baseEnergy + equipment.totalBonuses.energyBonus + stats.intelligence / 10 + skillPassives.maxEnergyBonus }
-    var cardDrawCount: Int  { heroClass.baseCardDraw + equipment.totalBonuses.cardDrawBonus + skillPassives.drawPerTurn }
-    var attackBonus: Int    { baseAttackBonus + equipment.totalBonuses.attackBonus + stats.strength / 5 + skillPassives.attackBonus }
-    var defenseBonus: Int   { baseDefenseBonus + equipment.totalBonuses.defenseBonus + stats.dexterity / 5 + skillPassives.defenseBonus }
-    var spellpower: Int     { equipment.totalBonuses.spellpowerBonus + stats.intelligence / 4 + skillPassives.spellpowerBonus }
-    var lifeOnKill: Int     { equipment.totalBonuses.lifeOnKill + skillPassives.lifeOnKill }
-    var startingBlock: Int  { equipment.totalBonuses.startingBlock + skillPassives.startingBlock }
-    var poisonOnHit: Int    { equipment.totalBonuses.poisonOnHit + skillPassives.poisonOnHit }
+    var maxEnergy: Int      { heroClass.baseEnergy + stats.intelligence / 10 + skillPassives.maxEnergyBonus }
+    var cardDrawCount: Int  { heroClass.baseCardDraw + skillPassives.drawPerTurn }
+    var attackBonus: Int    { baseAttackBonus + stats.strength / 5 + skillPassives.attackBonus }
+    var defenseBonus: Int   { baseDefenseBonus + stats.dexterity / 5 + skillPassives.defenseBonus }
+    var spellpower: Int     { stats.intelligence / 4 + skillPassives.spellpowerBonus }
+    var lifeOnKill: Int     { skillPassives.lifeOnKill }
+    var startingBlock: Int  { skillPassives.startingBlock }
+    var poisonOnHit: Int    { skillPassives.poisonOnHit }
     var energyOnKill: Int   { skillPassives.energyOnKill }
     var totalCardPool: Int  { deck.count + hand.count + discardPile.count }
     var isAlive: Bool       { totalCardPool > 0 }

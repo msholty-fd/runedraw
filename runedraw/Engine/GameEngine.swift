@@ -37,7 +37,6 @@ class GameEngine {
     // Per-turn combat state
     var lastPlayedCardType: CardType? = nil   // combo mechanic: tracks type of last card played
     var amplifyActive: Bool = false            // Sorceress: next attack card deals 2×
-    var usedEquipmentActivations: Set<EquipmentSlot> = []
 
     // Pitch state — FAB-style: pitch hand cards to fund the cost of another card
     /// The card currently staged for play (still in hand; awaiting pitch to cover its cost).
@@ -300,7 +299,6 @@ class GameEngine {
         playedCards = []
         lastPlayedCardType = nil
         amplifyActive = false
-        usedEquipmentActivations = []
         combatEvasionCharges    = h.skillPassives.evasionCharges
         hasEnduredThisCombat    = false
         pendingFreeCard         = false
@@ -1020,7 +1018,6 @@ class GameEngine {
         playedCards = []
         lastPlayedCardType = nil
         amplifyActive = false
-        usedEquipmentActivations = []
         pendingFreeCard = false
         pendingAssassinateReady = false
         stagedCardID = nil
@@ -1177,12 +1174,8 @@ class GameEngine {
     func pickUpLoot(_ card: Card) {
         guard var h = hero,
               let idx = groundLoot.firstIndex(where: { $0.id == card.id }) else { return }
-        if card.isEquipment {
-            h.inventory.add(card)
-        } else {
-            // Combat card → goes to collection, never to inventory grid
-            h.cardCollection.append(card)
-        }
+        // All loot is now combat cards — goes to collection
+        h.cardCollection.append(card)
         groundLoot.remove(at: idx)
         hero = h
         autoSave()
@@ -1278,141 +1271,10 @@ class GameEngine {
         }
     }
 
-    // MARK: - Inventory Management
+    // MARK: - Inventory Management (stub — equipment system removed)
 
-    func equipFromInventory(_ card: Card) {
-        guard card.isEquipment, var h = hero, let slot = card.equipmentSlot else { return }
-        guard h.meetsRequirements(for: card) else { return }
-        guard h.inventory.remove(id: card.id) != nil else { return }
-
-        if let displaced = h.equipment.unequip(slot) {
-            h.inventory.add(displaced)
-        }
-
-        h.equipment.equip(card)
-        hero = h
-        autoSave()
-    }
-
-    func unequipToInventory(_ slot: EquipmentSlot) {
-        guard var h = hero else { return }
-        if let displaced = h.equipment.unequip(slot) {
-            h.inventory.add(displaced)
-        }
-        hero = h
-        autoSave()
-    }
-
+    /// No-op: equipment system has been removed. Kept for save compatibility.
     func dropFromInventory(_ card: Card) {
-        hero?.inventory.remove(id: card.id)
-        autoSave()
-    }
-
-    // MARK: - Equipment Activation
-
-    func canActivateEquipment(_ slot: EquipmentSlot) -> Bool {
-        guard let card = hero?.equipment.equipped(in: slot),
-              !usedEquipmentActivations.contains(slot),
-              (hero?.currentEnergy ?? 0) >= card.activatedCost else { return false }
-        let fx = card.effect
-        return fx.damage > 0 || fx.block > 0 || fx.draw > 0 || fx.energyGain > 0 ||
-               fx.heal > 0 || fx.poisonStacks > 0 || fx.strengthGain > 0 ||
-               fx.amplifyNext || fx.vulnerableStacks > 0 || fx.applyBurn > 0
-    }
-
-    func activateEquipment(_ slot: EquipmentSlot, targeting enemyIndex: Int = 0) {
-        guard canActivateEquipment(slot),
-              var h = hero,
-              let card = h.equipment.equipped(in: slot) else { return }
-
-        // Snapshot scaling from h before any mutation — avoids @Observable exclusivity violations
-        // that occur when hero?.someProperty += expr also reads hero inside the same expression.
-        let fx       = card.effect
-        let scaling  = fx.damageType == .physical ? h.attackBonus + h.combatStrength : h.spellpower
-        let defBonus = h.defenseBonus
-
-        h.currentEnergy -= card.activatedCost
-        usedEquipmentActivations.insert(slot)
-        log("⚙️ \(card.name): activated.")
-
-        // Damage — immediate
-        if fx.damage > 0 {
-            let perHit = max(1, fx.damage + scaling)
-            let typeTag = fx.damageType == .physical ? "" : " (\(fx.damageType.rawValue))"
-            if fx.damageAllEnemies {
-                for idx in currentEnemies.indices {
-                    log("  ↳ \(perHit)\(typeTag) damage vs \(currentEnemies[idx].name).")
-                    applyDamageToEnemy(at: idx, amount: perHit)
-                }
-            } else if enemyIndex < currentEnemies.count {
-                log("  ↳ \(perHit)\(typeTag) damage vs \(currentEnemies[enemyIndex].name).")
-                applyDamageToEnemy(at: enemyIndex, amount: perHit)
-            }
-        }
-
-        // All hero mutations against local h — no hero?. optional-chain writes
-        if fx.block > 0 {
-            let amt = fx.block + defBonus
-            h.block += amt
-            log("  ↳ Gained \(amt) block.")
-        }
-        if fx.strengthGain > 0 {
-            h.combatStrength += fx.strengthGain
-            log("  ↳ +\(fx.strengthGain) Strength this combat.")
-        }
-        if fx.energyGain > 0 {
-            h.currentEnergy += fx.energyGain
-            log("  ↳ Gained \(fx.energyGain) energy.")
-        }
-        if fx.heal > 0 {
-            h.restoreExiledCards(count: fx.heal)
-            log("  ↳ Restored \(fx.heal) card(s) from exile.")
-        }
-        if fx.amplifyNext {
-            amplifyActive = true
-            log("  ↳ ⚡ Next attack deals double damage.")
-        }
-
-        // Enemy status effects
-        if enemyIndex < currentEnemies.count {
-            let name = currentEnemies[enemyIndex].name
-            if fx.poisonStacks > 0 {
-                currentEnemies[enemyIndex].poisonStacks += fx.poisonStacks
-                log("  ↳ ☠️ \(name) poisoned (\(fx.poisonStacks) stacks).")
-            }
-            if fx.applyBurn > 0 {
-                currentEnemies[enemyIndex].burnStacks += fx.applyBurn
-                log("  ↳ 🔥 \(name) burning (\(fx.applyBurn) stacks).")
-            }
-            if fx.vulnerableStacks > 0 {
-                currentEnemies[enemyIndex].vulnerableStacks += fx.vulnerableStacks
-                log("  ↳ 🎯 \(name) vulnerable (\(fx.vulnerableStacks) stacks).")
-            }
-        }
-        if fx.damageAllEnemies && fx.poisonStacks > 0 {
-            for idx in currentEnemies.indices { currentEnemies[idx].poisonStacks += fx.poisonStacks }
-            log("  ↳ ☠️ All enemies poisoned (\(fx.poisonStacks) stacks).")
-        }
-
-        // Single write to hero, then drawCards (it uses its own guard var h = hero)
-        hero = h
-        if fx.draw > 0 { drawCards(fx.draw) }
-    }
-
-    func addEquipmentToDeck(_ card: Card) {
-        guard var h = hero, h.inventory.contains(id: card.id) else { return }
-        h.inventory.remove(id: card.id)
-        h.cardCollection.append(card)
-        hero = h
-        autoSave()
-    }
-
-    func returnEquipmentToBag(_ card: Card) {
-        guard var h = hero, card.isEquipment,
-              let idx = h.cardCollection.firstIndex(where: { $0.id == card.id }) else { return }
-        h.cardCollection.remove(at: idx)
-        h.inventory.add(card)
-        hero = h
         autoSave()
     }
 
@@ -1524,7 +1386,8 @@ class GameEngine {
               itemIndex < shops[shopIndex].items.count else { return }
         let item = shops[shopIndex].items[itemIndex]
         guard !item.isPurchased, h.gold >= item.price else { return }
-        h.inventory.add(item.card)
+        // Shop now only sells combat cards — goes directly to collection
+        h.cardCollection.append(item.card)
         h.gold -= item.price
         shops[shopIndex].items[itemIndex].isPurchased = true
         hero = h
@@ -1594,7 +1457,8 @@ class GameEngine {
 
     func sellItem(_ card: Card) {
         guard var h = hero,
-              h.inventory.remove(id: card.id) != nil else { return }
+              let idx = h.cardCollection.firstIndex(where: { $0.id == card.id }) else { return }
+        h.cardCollection.remove(at: idx)
         h.gold += ShopDatabase.sellPrice(for: card)
         hero = h
         autoSave()

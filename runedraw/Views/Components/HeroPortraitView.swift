@@ -2,12 +2,10 @@ import SwiftUI
 
 struct HeroPortraitView: View {
     let heroClass: HeroClass
-    var equipment: HeroEquipment? = nil
     var size: CGFloat = 200
 
     private var visuals: EquipmentVisuals {
-        if let eq = equipment { return EquipmentVisuals(from: eq) }
-        return EquipmentVisuals.classDefault(for: heroClass)
+        EquipmentVisuals.classDefault(for: heroClass)
     }
 
     var body: some View {
