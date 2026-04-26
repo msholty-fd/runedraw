@@ -152,40 +152,93 @@ struct CardDatabase {
 
     private static func barbarianDeck() -> [Card] {
         unique([
-            card("Strike",     "Deal 6 damage.",                cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 6,  damageType: .physical), def: 3, pitch: 3),
-            card("Strike",     "Deal 6 damage.",                cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 6,  damageType: .physical), def: 3, pitch: 3),
-            card("Strike",     "Deal 6 damage.",                cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 6,  damageType: .physical), def: 3, pitch: 3),
-            card("Defend",     "Gain 5 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 5),                          def: 6, pitch: 3),
-            card("Defend",     "Gain 5 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 5),                          def: 6, pitch: 3),
-            card("Defend",     "Gain 5 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 5),                          def: 6, pitch: 3),
-            card("Cleave",     "Deal 4 damage to ALL enemies.", cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 4, damageType: .physical, damageAllEnemies: true), def: 2, pitch: 3),
-            card("Battle Cry", "Gain 3 block. Draw 1.",         cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 3, draw: 1),                 def: 4, pitch: 3),
+            // Core attacks — bread-and-butter physical damage
+            card("Strike",       "Deal 6 damage.",                cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 6,  damageType: .physical),                           def: 3, pitch: 3),
+            card("Strike",       "Deal 6 damage.",                cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 6,  damageType: .physical),                           def: 3, pitch: 3),
+            card("Strike",       "Deal 6 damage.",                cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 6,  damageType: .physical),                           def: 3, pitch: 3),
+            card("Strike",       "Deal 6 damage.",                cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 6,  damageType: .physical),                           def: 3, pitch: 3),
+            // Stronger hits — introduces the heavier swing feel
+            card("Slam",         "Deal 10 physical damage.",      cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 10, damageType: .physical),                           def: 3, pitch: 2),
+            card("Slam",         "Deal 10 physical damage.",      cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 10, damageType: .physical),                           def: 3, pitch: 2),
+            // Defence — blocks physical attacks, also great pitch fodder
+            card("Defend",       "Gain 5 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 5),                                                    def: 6, pitch: 3),
+            card("Defend",       "Gain 5 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 5),                                                    def: 6, pitch: 3),
+            card("Defend",       "Gain 5 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 5),                                                    def: 6, pitch: 3),
+            card("Defend",       "Gain 5 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 5),                                                    def: 6, pitch: 3),
+            card("Iron Skin",    "Gain 8 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 8),                                                    def: 7, pitch: 3),
+            card("Iron Skin",    "Gain 8 block.",                 cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 8),                                                    def: 7, pitch: 3),
+            // Area — introduces multi-target (only one enemy now but good for future)
+            card("Cleave",       "Deal 4 damage to ALL enemies.", cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 4, damageType: .physical, damageAllEnemies: true),    def: 2, pitch: 3),
+            card("Ground Smash", "Deal 5 damage to ALL enemies.", cost: 1, type: .attack, class: .barbarian, effect: CardEffect(damage: 5, damageType: .physical, damageAllEnemies: true),    def: 2, pitch: 3),
+            // Utility — introduces draw and the Strength mechanic
+            card("Battle Cry",   "Gain 3 block. Draw 1.",         cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 3, draw: 1),                                          def: 4, pitch: 3),
+            card("Battle Cry",   "Gain 3 block. Draw 1.",         cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(block: 3, draw: 1),                                          def: 4, pitch: 3),
+            card("Battle Stance","Gain 2 Strength. Draw 1.",      cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(draw: 1, strengthGain: 2),                                   def: 3, pitch: 2),
+            card("Battle Stance","Gain 2 Strength. Draw 1.",      cost: 1, type: .skill,  class: .barbarian, effect: CardEffect(draw: 1, strengthGain: 2),                                   def: 3, pitch: 2),
+            card("Rage",         "Pitch for 3. Gain 2 energy.",   cost: 0, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                              def: 2, pitch: 3),
+            card("Rage",         "Pitch for 3. Gain 2 energy.",   cost: 0, type: .skill,  class: .barbarian, effect: CardEffect(energyGain: 2),                                              def: 2, pitch: 3),
         ])
     }
 
     private static func rogueDeck() -> [Card] {
         unique([
-            card("Backstab",     "Deal 8 damage.",                 cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical),                       def: 3, pitch: 3),
-            card("Backstab",     "Deal 8 damage.",                 cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical),                       def: 3, pitch: 3),
-            card("Backstab",     "Deal 8 damage.",                 cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical),                       def: 3, pitch: 3),
-            card("Shadow Step",  "Gain 5 block. Draw 1.",          cost: 1, type: .skill,  class: .rogue, effect: CardEffect(block: 5, draw: 1),                                      def: 5, pitch: 3),
-            card("Shadow Step",  "Gain 5 block. Draw 1.",          cost: 1, type: .skill,  class: .rogue, effect: CardEffect(block: 5, draw: 1),                                      def: 5, pitch: 3),
-            card("Poison Blade", "Deal 4 damage. Apply 3 poison.", cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, poisonStacks: 3),      def: 2, pitch: 3),
-            card("Poison Blade", "Deal 4 damage. Apply 3 poison.", cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, poisonStacks: 3),      def: 2, pitch: 3),
-            card("Preparation",  "Draw 2 cards.",                  cost: 1, type: .skill,  class: .rogue, effect: CardEffect(draw: 2),                                                def: 3, pitch: 3),
+            // Core attacks
+            card("Backstab",     "Deal 8 damage.",                 cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical),                             def: 3, pitch: 3),
+            card("Backstab",     "Deal 8 damage.",                 cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical),                             def: 3, pitch: 3),
+            card("Backstab",     "Deal 8 damage.",                 cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 8, damageType: .physical),                             def: 3, pitch: 3),
+            // Free attacks — zero-cost is the Rogue's signature; pitch value still useful
+            card("Quick Stab",   "Deal 5 physical damage.",        cost: 0, type: .attack, class: .rogue, effect: CardEffect(damage: 5, damageType: .physical),                             def: 3, pitch: 3),
+            card("Quick Stab",   "Deal 5 physical damage.",        cost: 0, type: .attack, class: .rogue, effect: CardEffect(damage: 5, damageType: .physical),                             def: 3, pitch: 3),
+            card("Quick Stab",   "Deal 5 physical damage.",        cost: 0, type: .attack, class: .rogue, effect: CardEffect(damage: 5, damageType: .physical),                             def: 3, pitch: 3),
+            // Poison — the Rogue's damage-over-time identity
+            card("Poison Blade", "Deal 4 damage. Apply 3 poison.", cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, poisonStacks: 3),            def: 2, pitch: 3),
+            card("Poison Blade", "Deal 4 damage. Apply 3 poison.", cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 4, damageType: .physical, poisonStacks: 3),            def: 2, pitch: 3),
+            card("Envenom",      "Apply 5 poison.",                cost: 1, type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 5),                                              def: 3, pitch: 3),
+            card("Envenom",      "Apply 5 poison.",                cost: 1, type: .skill,  class: .rogue, effect: CardEffect(poisonStacks: 5),                                              def: 3, pitch: 3),
+            // Defence + draw
+            card("Shadow Step",  "Gain 5 block. Draw 1.",          cost: 1, type: .skill,  class: .rogue, effect: CardEffect(block: 5, draw: 1),                                            def: 5, pitch: 3),
+            card("Shadow Step",  "Gain 5 block. Draw 1.",          cost: 1, type: .skill,  class: .rogue, effect: CardEffect(block: 5, draw: 1),                                            def: 5, pitch: 3),
+            card("Shadow Step",  "Gain 5 block. Draw 1.",          cost: 1, type: .skill,  class: .rogue, effect: CardEffect(block: 5, draw: 1),                                            def: 5, pitch: 3),
+            card("Veil",         "Gain 6 block.",                  cost: 1, type: .skill,  class: .rogue, effect: CardEffect(block: 6),                                                     def: 6, pitch: 3),
+            card("Veil",         "Gain 6 block.",                  cost: 1, type: .skill,  class: .rogue, effect: CardEffect(block: 6),                                                     def: 6, pitch: 3),
+            // Draw engine
+            card("Preparation",  "Draw 2 cards.",                  cost: 1, type: .skill,  class: .rogue, effect: CardEffect(draw: 2),                                                      def: 3, pitch: 3),
+            card("Preparation",  "Draw 2 cards.",                  cost: 1, type: .skill,  class: .rogue, effect: CardEffect(draw: 2),                                                      def: 3, pitch: 3),
+            // Debuff — introduces the vulnerability/expose mechanic
+            card("Expose",       "Deal 6 damage. Apply 3 vulnerable.", cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 6, damageType: .physical, vulnerableStacks: 3),   def: 3, pitch: 2),
+            card("Expose",       "Deal 6 damage. Apply 3 vulnerable.", cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 6, damageType: .physical, vulnerableStacks: 3),   def: 3, pitch: 2),
+            card("Fan of Knives","Deal 3 damage to ALL enemies.",  cost: 1, type: .attack, class: .rogue, effect: CardEffect(damage: 3, damageType: .physical, damageAllEnemies: true),     def: 2, pitch: 3),
         ])
     }
 
     private static func sorceressDeck() -> [Card] {
         unique([
-            card("Fireball",     "Deal 12 fire damage.",         cost: 2, type: .attack, class: .sorceress, effect: CardEffect(damage: 12, damageType: .fire),   def: 2, pitch: 2),
-            card("Fireball",     "Deal 12 fire damage.",         cost: 2, type: .attack, class: .sorceress, effect: CardEffect(damage: 12, damageType: .fire),   def: 2, pitch: 2),
-            card("Magic Missile","Deal 6 arcane damage.",        cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 6,  damageType: .arcane), def: 3, pitch: 3),
-            card("Magic Missile","Deal 6 arcane damage.",        cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 6,  damageType: .arcane), def: 3, pitch: 3),
-            card("Magic Missile","Deal 6 arcane damage.",        cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 6,  damageType: .arcane), def: 3, pitch: 3),
-            card("Mana Shield",  "Gain 8 block.",                cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(block: 8),                        def: 6, pitch: 3),
-            card("Mana Shield",  "Gain 8 block.",                cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(block: 8),                        def: 6, pitch: 3),
-            card("Arcane Surge", "Draw 2 cards. Gain 1 energy.", cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(draw: 2, energyGain: 1),          def: 2, pitch: 3),
+            // Signature spell — expensive but hits hard; teaches pitch math
+            card("Fireball",     "Deal 12 fire damage.",              cost: 2, type: .attack, class: .sorceress, effect: CardEffect(damage: 12, damageType: .fire),                         def: 2, pitch: 2),
+            card("Fireball",     "Deal 12 fire damage.",              cost: 2, type: .attack, class: .sorceress, effect: CardEffect(damage: 12, damageType: .fire),                         def: 2, pitch: 2),
+            card("Fireball",     "Deal 12 fire damage.",              cost: 2, type: .attack, class: .sorceress, effect: CardEffect(damage: 12, damageType: .fire),                         def: 2, pitch: 2),
+            // Cheap arcane damage — free to pitch or play
+            card("Magic Missile","Deal 6 arcane damage.",             cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 6,  damageType: .arcane),                       def: 3, pitch: 3),
+            card("Magic Missile","Deal 6 arcane damage.",             cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 6,  damageType: .arcane),                       def: 3, pitch: 3),
+            card("Magic Missile","Deal 6 arcane damage.",             cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 6,  damageType: .arcane),                       def: 3, pitch: 3),
+            card("Magic Missile","Deal 6 arcane damage.",             cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 6,  damageType: .arcane),                       def: 3, pitch: 3),
+            // Burn — introduces DoT, cheap enough to pitch
+            card("Scorch",       "Deal 5 fire damage. Apply 3 burn.", cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .fire, applyBurn: 3),            def: 2, pitch: 3),
+            card("Scorch",       "Deal 5 fire damage. Apply 3 burn.", cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .fire, applyBurn: 3),            def: 2, pitch: 3),
+            card("Scorch",       "Deal 5 fire damage. Apply 3 burn.", cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 5, damageType: .fire, applyBurn: 3),            def: 2, pitch: 3),
+            // Defence
+            card("Mana Shield",  "Gain 8 block.",                     cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(block: 8),                                              def: 6, pitch: 3),
+            card("Mana Shield",  "Gain 8 block.",                     cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(block: 8),                                              def: 6, pitch: 3),
+            card("Mana Shield",  "Gain 8 block.",                     cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(block: 8),                                              def: 6, pitch: 3),
+            // Draw + setup
+            card("Arcane Surge", "Draw 2 cards. Gain 1 energy.",      cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(draw: 2, energyGain: 1),                               def: 2, pitch: 3),
+            card("Arcane Surge", "Draw 2 cards. Gain 1 energy.",      cost: 1, type: .skill,  class: .sorceress, effect: CardEffect(draw: 2, energyGain: 1),                               def: 2, pitch: 3),
+            // Amplify — introduces the double-damage mechanic
+            card("Amplify",      "Your next attack deals double damage.", cost: 1, type: .skill, class: .sorceress, effect: CardEffect(amplifyNext: true),                                  def: 2, pitch: 3),
+            card("Amplify",      "Your next attack deals double damage.", cost: 1, type: .skill, class: .sorceress, effect: CardEffect(amplifyNext: true),                                  def: 2, pitch: 3),
+            // Chill — introduces crowd control
+            card("Frost Bolt",   "Deal 7 ice damage. Apply 2 Chill.", cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 7, damageType: .ice, applyChillStacks: 2),     def: 3, pitch: 2),
+            card("Frost Bolt",   "Deal 7 ice damage. Apply 2 Chill.", cost: 1, type: .attack, class: .sorceress, effect: CardEffect(damage: 7, damageType: .ice, applyChillStacks: 2),     def: 3, pitch: 2),
         ])
     }
 
