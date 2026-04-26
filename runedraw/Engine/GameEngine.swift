@@ -14,7 +14,6 @@ class GameEngine {
     var combatLog: [String] = []
     var groundLoot: [Card] = []
     var currentLootContext: LootContext = .combat
-    var shops: [Shop] = []
     var hasDungeonPortalOpen: Bool = false
     var currentEncounter: EncounterEvent?
     var currentEncounterResult: String?
@@ -62,7 +61,6 @@ class GameEngine {
 
     // Combat reward summary — read by LootPickupView for animations
     var lastCombatExpGained: Int = 0
-    var lastCombatGoldGained: Int = 0
     var lastCombatLevelsGained: Int = 0
     // Snapshot of hero state at the moment combat started (for bar animation)
     private(set) var combatStartExp: Int = 0
@@ -107,7 +105,6 @@ class GameEngine {
         currentArea       = AreaDatabase.generate(areaIndex: 1)
         combatLog         = []
         hasDungeonPortalOpen = false
-        shops             = ShopDatabase.generateShops(floorNumber: 1)
         screen            = .town
         autoSave()
     }
@@ -241,15 +238,8 @@ class GameEngine {
             h.exileCards(count: cardsExiled)
             lines.append("Lost \(cardsExiled) card(s) to damage.")
 
-        case .gold(let amt):
-            if amt >= 0 {
-                h.gold += amt
-                lines.append("+\(amt) gold.")
-            } else {
-                let paid = min(h.gold, -amt)
-                h.gold -= paid
-                lines.append("Paid \(paid) gold.")
-            }
+        case .gold:
+            break   // gold removed from game — treat as nothing
 
         case .loot(let tier):
             let items = LootDatabase.generateLoot(floorNumber: tier, isBoss: false, count: 1)
@@ -284,7 +274,6 @@ class GameEngine {
         combatStartExp       = h.experience
         combatStartLevel     = h.level
         lastCombatExpGained  = 0
-        lastCombatGoldGained = 0
         lastCombatLevelsGained = 0
 
         h.deck          = (h.deck + h.discardPile + h.hand).shuffled()
@@ -1091,10 +1080,6 @@ class GameEngine {
         } else {
             log("✨ +\(exp) EXP")
         }
-        let gold = goldPerKill() * count
-        lastCombatGoldGained += gold
-        hero?.gold += gold
-        log("💰 +\(gold)g")
     }
 
     // MARK: - Draw
@@ -1260,8 +1245,6 @@ class GameEngine {
             } else {
                 currentAreaIndex += 1
                 currentArea = AreaDatabase.generate(areaIndex: currentAreaIndex)
-                let lootTier = AreaDatabase.definition(for: currentAreaIndex)?.lootTier ?? 1
-                shops = ShopDatabase.generateShops(floorNumber: lootTier)
                 screen = .dungeonMap
                 autoSave()
             }
@@ -1301,7 +1284,6 @@ class GameEngine {
         totalAreasCleared    = 0
         combatLog            = []
         groundLoot           = []
-        shops                = []
         hasDungeonPortalOpen = false
         currentEncounter     = nil
         currentEncounterResult = nil
@@ -1329,20 +1311,10 @@ class GameEngine {
         return (currentRoomIsBoss ? base * 2 : base) * eliteBonus / (currentRoomIsElite ? 2 : 1)
     }
 
-    private func goldPerKill() -> Int {
-        let base = currentAreaIndex * 8 + 12
-        let variance = Int.random(in: -5...10)
-        let eliteBonus = currentRoomIsElite ? 20 : 0
-        return max(5, base + variance + eliteBonus + (currentRoomIsBoss ? 50 : 0))
-    }
-
     // MARK: - Town
 
-    func enterTown() {
-        let lootTier = AreaDatabase.definition(for: currentAreaIndex)?.lootTier ?? 1
-        shops = ShopDatabase.generateShops(floorNumber: lootTier)
+    func returnToTown() {
         screen = .town
-        autoSave()
     }
 
     // MARK: - Waypoint Travel
@@ -1352,8 +1324,6 @@ class GameEngine {
         currentAreaIndex     = areaIndex
         currentArea          = AreaDatabase.generate(areaIndex: areaIndex)
         hasDungeonPortalOpen = false
-        let lootTier = AreaDatabase.definition(for: areaIndex)?.lootTier ?? 1
-        shops = ShopDatabase.generateShops(floorNumber: lootTier)
         screen = .dungeonMap
         autoSave()
     }
@@ -1364,41 +1334,9 @@ class GameEngine {
         autoSave()
     }
 
-    func useTownPortal() {
-        guard var h = hero, h.townPortals > 0 else { return }
-        h.townPortals -= 1
-        hero = h
-        hasDungeonPortalOpen = true
-        enterTown()
-    }
-
     func returnToDungeon() {
         hasDungeonPortalOpen = false
         screen = .dungeonMap
-        autoSave()
-    }
-
-    // MARK: - Shop
-
-    func buyItem(at itemIndex: Int, in shopIndex: Int) {
-        guard var h = hero,
-              shopIndex < shops.count,
-              itemIndex < shops[shopIndex].items.count else { return }
-        let item = shops[shopIndex].items[itemIndex]
-        guard !item.isPurchased, h.gold >= item.price else { return }
-        // Shop now only sells combat cards — goes directly to collection
-        h.cardCollection.append(item.card)
-        h.gold -= item.price
-        shops[shopIndex].items[itemIndex].isPurchased = true
-        hero = h
-        autoSave()
-    }
-
-    func buyTownPortal() {
-        guard var h = hero, h.gold >= ShopDatabase.portalPrice else { return }
-        h.gold -= ShopDatabase.portalPrice
-        h.townPortals += 1
-        hero = h
         autoSave()
     }
 
@@ -1451,15 +1389,6 @@ class GameEngine {
         if m.hasPermafrost    { h.skillPassives.hasPermafrost    = true }
         if m.hasConflagration { h.skillPassives.hasConflagration = true }
         // maxHpBonus: no longer applicable — deck is life total
-        hero = h
-        autoSave()
-    }
-
-    func sellItem(_ card: Card) {
-        guard var h = hero,
-              let idx = h.cardCollection.firstIndex(where: { $0.id == card.id }) else { return }
-        h.cardCollection.remove(at: idx)
-        h.gold += ShopDatabase.sellPrice(for: card)
         hero = h
         autoSave()
     }

@@ -181,9 +181,6 @@ struct EncounterView: View {
         if lower.contains("damage") || lower.contains("took") {
             return Color(red: 1.0, green: 0.3, blue: 0.3)
         }
-        if lower.contains("gold") || lower.contains("paid") {
-            return Color(red: 1.0, green: 0.82, blue: 0.25)
-        }
         if lower.contains("stat point") || lower.contains("found:") {
             return Color(red: 0.8, green: 0.6, blue: 1.0)
         }
@@ -254,8 +251,6 @@ private struct ChoiceButton: View {
         switch choice.outcome {
         case .heal, .healPercent:
             return Color(red: 0.3, green: 1.0, blue: 0.5)
-        case .gold:
-            return Color(red: 1.0, green: 0.82, blue: 0.25)
         case .loot:
             return Color(red: 0.8, green: 0.6, blue: 1.0)
         case .statPoints:

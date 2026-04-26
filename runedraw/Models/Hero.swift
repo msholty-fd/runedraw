@@ -314,10 +314,6 @@ struct Hero: Codable {
     var stats: HeroStats = HeroStats()
     var statPoints: Int = 0            // unspent points gained on level-up
 
-    // Economy
-    var gold: Int = 150
-    var townPortals: Int = 2
-
     // Skill tree
     var skillPoints: Int = 0
     var unlockedSkills: [String] = []
@@ -351,7 +347,10 @@ struct Hero: Codable {
         case heroClass, deck, hand, discardPile, exiledCards
         case currentEnergy, block, poisonStacks, weakStacks, vulnerableStacks
         case level, experience, baseAttackBonus, baseDefenseBonus
-        case stats, statPoints, gold, townPortals
+        case stats, statPoints
+        // Note: gold and townPortals have been removed from gameplay.
+        // JSONDecoder silently ignores unknown keys, so old saves that still contain
+        // "gold" or "townPortals" JSON fields will load without crashing.
         case skillPoints, unlockedSkills, skillPassives
         case combatStrength, unlockedWaypoints, cardCollection
     }
@@ -369,8 +368,6 @@ struct Hero: Codable {
         self.baseDefenseBonus = 0
         self.stats            = heroClass.startingStats
         self.statPoints       = 0
-        self.gold             = 150
-        self.townPortals      = 2
         self.skillPoints        = 0
         self.unlockedSkills     = []
         self.unlockedWaypoints  = []
@@ -396,8 +393,7 @@ struct Hero: Codable {
         baseDefenseBonus = try c.decodeIfPresent(Int.self,       forKey: .baseDefenseBonus) ?? 0
         stats            = try c.decodeIfPresent(HeroStats.self, forKey: .stats) ?? heroClass.startingStats
         statPoints       = try c.decodeIfPresent(Int.self,       forKey: .statPoints) ?? 0
-        gold             = try c.decodeIfPresent(Int.self,       forKey: .gold) ?? 0
-        townPortals      = try c.decodeIfPresent(Int.self,       forKey: .townPortals) ?? 0
+        // gold and townPortals removed — JSONDecoder ignores unknown keys automatically.
         skillPoints         = try c.decodeIfPresent(Int.self,    forKey: .skillPoints) ?? 0
         unlockedSkills      = try c.decodeIfPresent([String].self, forKey: .unlockedSkills) ?? []
         unlockedWaypoints   = try c.decodeIfPresent([Int].self,  forKey: .unlockedWaypoints) ?? []

@@ -192,9 +192,8 @@ struct LootPickupView: View {
     private var expStrip: some View {
         ZStack {
             VStack(spacing: 6) {
-                // Row: +EXP and +Gold labels
+                // Row: +EXP label
                 HStack {
-                    // EXP gain
                     HStack(spacing: 4) {
                         Text("✨")
                             .font(.system(size: 12))
@@ -203,18 +202,7 @@ struct LootPickupView: View {
                             .foregroundStyle(Color(red: 1.0, green: 0.85, blue: 0.4))
                             .contentTransition(.numericText())
                     }
-
                     Spacer()
-
-                    // Gold gain
-                    if engine.lastCombatGoldGained > 0 {
-                        HStack(spacing: 4) {
-                            Text("💰").font(.system(size: 12))
-                            Text("+\(engine.lastCombatGoldGained)g")
-                                .font(.system(size: 13, weight: .black))
-                                .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.25))
-                        }
-                    }
                 }
 
                 // EXP bar
@@ -594,7 +582,6 @@ private func modColor(card: Card, index: Int) -> Color {
     let engine = GameEngine()
     engine.startNewGame(with: .sorceress)
     engine.lastCombatExpGained = 80
-    engine.lastCombatGoldGained = 45
     engine.lastCombatLevelsGained = 1
     engine.hero?.experience = 40
     engine.hero?.level = 2

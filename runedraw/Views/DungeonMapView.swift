@@ -49,22 +49,20 @@ struct DungeonMapView: View {
 
                         Spacer()
 
-                        // Town portal
-                        if hero.townPortals > 0 {
-                            Button { engine.useTownPortal() } label: {
-                                HStack(spacing: 3) {
-                                    Text("🌀").font(.system(size: 12))
-                                    Text("×\(hero.townPortals)")
-                                        .font(.system(size: 11, weight: .black))
-                                        .foregroundStyle(Color(red: 0.5, green: 0.9, blue: 1.0))
-                                }
-                                .padding(.horizontal, 8).padding(.vertical, 5)
-                                .background(Color(red: 0.1, green: 0.3, blue: 0.6).opacity(0.3))
-                                .clipShape(Capsule())
-                                .overlay(Capsule().stroke(Color(red: 0.4, green: 0.7, blue: 1.0).opacity(0.35), lineWidth: 1))
+                        // Hub button — always available
+                        Button { engine.returnToTown() } label: {
+                            HStack(spacing: 3) {
+                                Text("🏠").font(.system(size: 12))
+                                Text("HUB")
+                                    .font(.system(size: 11, weight: .black))
+                                    .foregroundStyle(Color(red: 1.0, green: 0.85, blue: 0.4))
                             }
-                            .buttonStyle(.plain)
+                            .padding(.horizontal, 8).padding(.vertical, 5)
+                            .background(Color(red: 0.3, green: 0.2, blue: 0.05).opacity(0.5))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(Color(red: 1.0, green: 0.75, blue: 0.2).opacity(0.4), lineWidth: 1))
                         }
+                        .buttonStyle(.plain)
 
                         // Waypoints
                         if !hero.unlockedWaypoints.isEmpty {

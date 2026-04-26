@@ -384,9 +384,6 @@ struct CharacterProfileView: View {
                          frac: Double(hero.exiledCards.count) / Double(max(1, hero.totalCardPool + hero.exiledCards.count)), color: .red)
             }
             HStack(spacing: 14) {
-                Text("💰  \(hero.gold) gold")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.25))
                 Spacer()
                 Text("🃏  \(hero.totalCardPool) active")
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(0.65))
